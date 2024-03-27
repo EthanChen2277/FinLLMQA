@@ -67,9 +67,9 @@ async def lifespan(app: FastAPI):
         torch.cuda.ipc_collect()
 
 
-app = FastAPI(lifespan=lifespan)
+llm_app = FastAPI(lifespan=lifespan)
 
-app.add_middleware(
+llm_app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
@@ -169,13 +169,13 @@ class ChatCompletionResponse(BaseModel):
     usage: Optional[UsageInfo] = None
 
 
-@app.get("/health")
+@llm_app.get("/health")
 async def health() -> Response:
     """Health check."""
     return Response(status_code=200)
 
 
-@app.post("/v1/embeddings", response_model=EmbeddingResponse)
+@llm_app.post("/v1/embeddings", response_model=EmbeddingResponse)
 async def get_embeddings(request: EmbeddingRequest):
     embeddings = [embedding_model.encode(text) for text in request.input]
     embeddings = [embedding.tolist() for embedding in embeddings]
@@ -209,7 +209,7 @@ async def get_embeddings(request: EmbeddingRequest):
     return response
 
 
-@app.get("/v1/models", response_model=ModelList)
+@llm_app.get("/v1/models", response_model=ModelList)
 async def list_models():
     model_card = ModelCard(
         id="chatglm3-6b"
@@ -219,7 +219,7 @@ async def list_models():
     )
 
 
-@app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
+@llm_app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
 async def create_chat_completion(request: ChatCompletionRequest):
     global model, tokenizer
 
@@ -540,4 +540,4 @@ if __name__ == "__main__":
 
     # load Embedding
     embedding_model = SentenceTransformer(EMBEDDING_PATH, device="cuda")
-    uvicorn.run(app, host='0.0.0.0', port=8000, workers=1)
+    uvicorn.run(llm_app, host='0.0.0.0', port=8000, workers=1)

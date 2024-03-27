@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from datetime import datetime
 from typing import Any, List, Optional, Dict, Callable, Tuple, Union
 import logging
 import inspect
@@ -53,6 +54,8 @@ if not logger.handlers:
 LEGACY_DEFAULT_CACHE_SEED = 41
 LEGACY_CACHE_DIR = ".cache"
 OPEN_API_BASE_URL_PREFIX = "https://api.openai.com"
+
+stream_buffer = {}
 
 
 class ModelClient(Protocol):
@@ -158,13 +161,25 @@ class OpenAIClient:
             The completion.
         """
         iostream = IOStream.get_default()
-
+        global stream_buffer
+        agent_name = params.pop("agent_name", "未知")
         completions: Completions = self._oai_client.chat.completions if "messages" in params else self._oai_client.completions  # type: ignore [attr-defined]
         # If streaming is enabled and has messages, then iterate over the chunks of the response.
         if params.get("stream", False) and "messages" in params:
             response_contents = [""] * params.get("n", 1)
             finish_reasons = [""] * params.get("n", 1)
             completion_tokens = 0
+            key = ''
+            for message in params['messages']:
+                if message['role'] == "user" and message['name'] == "智能体":
+                    key = message['content']
+                    break
+            answer = stream_buffer[key]['answer']
+            stream_buffer[key] = {
+                'answer': answer,
+                'stop': False,
+                'time': datetime.now()
+            }
 
             # Set the terminal text color to green
             iostream.print("\033[32m", end="")
@@ -172,6 +187,13 @@ class OpenAIClient:
             # Prepare for potential function call
             full_function_call: Optional[Dict[str, Any]] = None
             full_tool_calls: Optional[List[Optional[Dict[str, Any]]]] = None
+
+            one_answer = ''
+            # save one answer in global variable
+            stream_buffer[key]['answer'].append(
+                {
+                    'name': agent_name,
+                    'response': one_answer})
 
             # Send the chat completion request to OpenAI's API and process the response in chunks
             for chunk in completions.create(**params):
@@ -219,6 +241,9 @@ class OpenAIClient:
 
                         # If content is present, print it to the terminal and update response variables
                         if content is not None:
+                            stream_buffer[key]['time'] = datetime.now()
+                            one_answer += content
+                            stream_buffer[key]['answer'][-1]['response'] = one_answer
                             iostream.print(content, end="", flush=True)
                             response_contents[choice.index] += content
                             completion_tokens += 1
@@ -231,6 +256,7 @@ class OpenAIClient:
 
             # Prepare the final ChatCompletion object based on the accumulated data
             model = chunk.model.replace("gpt-35", "gpt-3.5")  # hack for Azure API
+            model = chunk.model.replace("chatglm3-6b", "gpt-4")  # hack for chatglm3-6b
             prompt_tokens = count_token(params["messages"], model)
             response = ChatCompletion(
                 id=chunk.id,

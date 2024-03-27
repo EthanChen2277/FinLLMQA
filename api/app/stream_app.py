@@ -4,7 +4,6 @@ import uvicorn
 import json
 import datetime
 import threading
-import builtins
 from autogen.oai.client import stream_buffer
 
 app = FastAPI()
