@@ -98,7 +98,7 @@ class Project:
         out.append("########## EDIT BELOW THIS LINE ONLY ##########\n")
         bespoke = "\n\n"
         try:
-            with open("setup.py") as f:
+            with open("../setup.py") as f:
                 lines = f.readlines()
                 search = "EDIT BELOW THIS LINE ONLY"
                 start = [i for i, s in enumerate(lines) if search in s][0]
@@ -123,7 +123,7 @@ class Project:
         out = autopep8.fix_code("".join(out))
 
         # write to file
-        with open("setup.py", "w") as f:
+        with open("../setup.py", "w") as f:
             f.writelines(out)
         log.info("created new setup.py")
 
