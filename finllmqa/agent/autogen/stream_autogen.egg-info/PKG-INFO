@@ -1,0 +1,14 @@
+Metadata-Version: 2.1
+Name: stream_autogen
+Version: 0.0.1
+Summary: User modified autogen
+Keywords: data
+Classifier: Intended Audience :: All Groups
+Classifier: Programming Language :: Python :: 3
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: numpy
+Requires-Dist: pandas
+
+"# user-autogen" 

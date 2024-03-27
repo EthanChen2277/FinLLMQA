@@ -1,0 +1,425 @@
+2024-03-26 18:04:35,993 - py2neo.client - DEBUG - Adding connection pool for profile ConnectionProfile('http://192.168.30.115:7474')
+2024-03-26 18:04:35,994 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:04:36,083 - urllib3.connectionpool - DEBUG - Starting new HTTP connection (1): 192.168.30.115:7474
+2024-03-26 18:04:36,127 - urllib3.connectionpool - DEBUG - http://192.168.30.115:7474 "GET / HTTP/1.1" 200 0
+2024-03-26 18:04:36,159 - urllib3.connectionpool - DEBUG - http://192.168.30.115:7474 "GET /db/data/ HTTP/1.1" 404 0
+2024-03-26 18:04:36,159 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:04:36,161 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:04:40,946 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:04:40,947 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:04:40,948 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:04:40,948 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:04:40,949 - py2neo.client.http - DEBUG - POST '/db/neo4j/tx/commit' '\nCALL db.schema.nodeTypeProperties() YIELD propertyName,mandatory \nRETURN distinct(propertyName) as prop, mandatory\n' {}
+2024-03-26 18:04:44,749 - urllib3.connectionpool - DEBUG - http://192.168.30.115:7474 "POST /db/neo4j/tx/commit HTTP/1.1" 200 0
+2024-03-26 18:04:44,750 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:04:44,751 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:04:44,751 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:04:44,752 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:04:44,752 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:04:44,752 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:04:44,754 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:04:44,755 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:04:44,755 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:04:44,756 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:04:44,756 - py2neo.client.http - DEBUG - POST '/db/neo4j/tx/commit' '\nCALL db.schema.nodeTypeProperties() YIELD nodeLabels\nRETURN distinct(nodeLabels) as label\n' {}
+2024-03-26 18:04:46,584 - urllib3.connectionpool - DEBUG - http://192.168.30.115:7474 "POST /db/neo4j/tx/commit HTTP/1.1" 200 0
+2024-03-26 18:04:46,586 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:04:46,587 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:04:46,588 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:04:46,589 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:04:46,590 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:04:46,591 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:04:46,593 - py2neo.client.json - DEBUG - Hydrating object ['股票']
+2024-03-26 18:04:46,593 - py2neo.client.json - DEBUG - Hydrating object '股票'
+2024-03-26 18:04:46,594 - py2neo.client.json - DEBUG - Hydrating object []
+2024-03-26 18:05:12,682 - py2neo.client.json - DEBUG - Hydrating object ['财务指标']
+2024-03-26 18:05:12,683 - py2neo.client.json - DEBUG - Hydrating object '财务指标'
+2024-03-26 18:05:12,684 - py2neo.client.json - DEBUG - Hydrating object ['个股研报']
+2024-03-26 18:05:12,684 - py2neo.client.json - DEBUG - Hydrating object '个股研报'
+2024-03-26 18:05:12,685 - py2neo.client.json - DEBUG - Hydrating object ['常用指标']
+2024-03-26 18:05:12,686 - py2neo.client.json - DEBUG - Hydrating object '常用指标'
+2024-03-26 18:05:12,686 - py2neo.client.json - DEBUG - Hydrating object ['每股指标']
+2024-03-26 18:05:12,688 - py2neo.client.json - DEBUG - Hydrating object '每股指标'
+2024-03-26 18:05:12,688 - py2neo.client.json - DEBUG - Hydrating object ['盈利能力']
+2024-03-26 18:05:12,689 - py2neo.client.json - DEBUG - Hydrating object '盈利能力'
+2024-03-26 18:05:12,690 - py2neo.client.json - DEBUG - Hydrating object ['成长能力']
+2024-03-26 18:05:12,690 - py2neo.client.json - DEBUG - Hydrating object '成长能力'
+2024-03-26 18:05:12,691 - py2neo.client.json - DEBUG - Hydrating object ['收益质量']
+2024-03-26 18:05:12,691 - py2neo.client.json - DEBUG - Hydrating object '收益质量'
+2024-03-26 18:05:12,692 - py2neo.client.json - DEBUG - Hydrating object ['财务风险']
+2024-03-26 18:05:12,693 - py2neo.client.json - DEBUG - Hydrating object '财务风险'
+2024-03-26 18:05:12,693 - py2neo.client.json - DEBUG - Hydrating object ['营运能力']
+2024-03-26 18:05:12,694 - py2neo.client.json - DEBUG - Hydrating object '营运能力'
+2024-03-26 18:05:12,694 - py2neo.client.json - DEBUG - Hydrating object ['主营构成']
+2024-03-26 18:05:12,695 - py2neo.client.json - DEBUG - Hydrating object '主营构成'
+2024-03-26 18:05:12,696 - py2neo.client.json - DEBUG - Hydrating object ['主营业务']
+2024-03-26 18:05:12,697 - py2neo.client.json - DEBUG - Hydrating object '主营业务'
+2024-03-26 18:05:12,697 - py2neo.client.json - DEBUG - Hydrating object ['主要股东']
+2024-03-26 18:05:12,698 - py2neo.client.json - DEBUG - Hydrating object '主要股东'
+2024-03-26 18:05:12,699 - py2neo.client.json - DEBUG - Hydrating object ['持股信息']
+2024-03-26 18:05:12,699 - py2neo.client.json - DEBUG - Hydrating object '持股信息'
+2024-03-26 18:05:58,393 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:05:58,394 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:05:58,394 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:05:58,395 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:05:58,396 - py2neo.client.http - DEBUG - POST '/db/neo4j/tx/commit' '\nCALL db.schema.nodeTypeProperties() YIELD nodeLabels\nRETURN distinct(nodeLabels) as label\n' {}
+2024-03-26 18:05:58,397 - urllib3.connectionpool - DEBUG - Resetting dropped connection: 192.168.30.115
+2024-03-26 18:06:00,075 - urllib3.connectionpool - DEBUG - http://192.168.30.115:7474 "POST /db/neo4j/tx/commit HTTP/1.1" 200 0
+2024-03-26 18:06:00,076 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:06:00,077 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:06:00,078 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:06:00,079 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:06:00,080 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:06:00,081 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:06:00,082 - py2neo.client.json - DEBUG - Hydrating object ['股票']
+2024-03-26 18:06:00,084 - py2neo.client.json - DEBUG - Hydrating object '股票'
+2024-03-26 18:06:00,085 - py2neo.client.json - DEBUG - Hydrating object []
+2024-03-26 18:06:00,086 - py2neo.client.json - DEBUG - Hydrating object ['财务指标']
+2024-03-26 18:06:00,087 - py2neo.client.json - DEBUG - Hydrating object '财务指标'
+2024-03-26 18:06:00,089 - py2neo.client.json - DEBUG - Hydrating object ['个股研报']
+2024-03-26 18:06:00,089 - py2neo.client.json - DEBUG - Hydrating object '个股研报'
+2024-03-26 18:06:00,090 - py2neo.client.json - DEBUG - Hydrating object ['常用指标']
+2024-03-26 18:06:00,092 - py2neo.client.json - DEBUG - Hydrating object '常用指标'
+2024-03-26 18:06:00,093 - py2neo.client.json - DEBUG - Hydrating object ['每股指标']
+2024-03-26 18:06:00,094 - py2neo.client.json - DEBUG - Hydrating object '每股指标'
+2024-03-26 18:06:00,095 - py2neo.client.json - DEBUG - Hydrating object ['盈利能力']
+2024-03-26 18:06:00,096 - py2neo.client.json - DEBUG - Hydrating object '盈利能力'
+2024-03-26 18:06:00,097 - py2neo.client.json - DEBUG - Hydrating object ['成长能力']
+2024-03-26 18:06:00,098 - py2neo.client.json - DEBUG - Hydrating object '成长能力'
+2024-03-26 18:06:00,099 - py2neo.client.json - DEBUG - Hydrating object ['收益质量']
+2024-03-26 18:06:00,100 - py2neo.client.json - DEBUG - Hydrating object '收益质量'
+2024-03-26 18:06:00,101 - py2neo.client.json - DEBUG - Hydrating object ['财务风险']
+2024-03-26 18:06:00,102 - py2neo.client.json - DEBUG - Hydrating object '财务风险'
+2024-03-26 18:06:00,102 - py2neo.client.json - DEBUG - Hydrating object ['营运能力']
+2024-03-26 18:06:00,102 - py2neo.client.json - DEBUG - Hydrating object '营运能力'
+2024-03-26 18:06:00,103 - py2neo.client.json - DEBUG - Hydrating object ['主营构成']
+2024-03-26 18:06:00,103 - py2neo.client.json - DEBUG - Hydrating object '主营构成'
+2024-03-26 18:06:00,104 - py2neo.client.json - DEBUG - Hydrating object ['主营业务']
+2024-03-26 18:06:00,104 - py2neo.client.json - DEBUG - Hydrating object '主营业务'
+2024-03-26 18:06:00,105 - py2neo.client.json - DEBUG - Hydrating object ['主要股东']
+2024-03-26 18:06:00,105 - py2neo.client.json - DEBUG - Hydrating object '主要股东'
+2024-03-26 18:06:00,106 - py2neo.client.json - DEBUG - Hydrating object ['持股信息']
+2024-03-26 18:06:00,106 - py2neo.client.json - DEBUG - Hydrating object '持股信息'
+2024-03-26 18:06:33,435 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:06:33,436 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:06:33,437 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:06:33,438 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:06:33,439 - py2neo.client.http - DEBUG - POST '/db/neo4j/tx/commit' '\nCALL db.schema.nodeTypeProperties() YIELD propertyName,mandatory \nRETURN distinct(propertyName) as prop, mandatory\n' {}
+2024-03-26 18:06:33,441 - urllib3.connectionpool - DEBUG - Resetting dropped connection: 192.168.30.115
+2024-03-26 18:06:35,148 - urllib3.connectionpool - DEBUG - http://192.168.30.115:7474 "POST /db/neo4j/tx/commit HTTP/1.1" 200 0
+2024-03-26 18:06:35,150 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:06:35,151 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:06:35,153 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:06:35,154 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:06:35,156 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:06:35,158 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:06:35,162 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:06:35,164 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:06:35,165 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:06:35,167 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:06:35,169 - py2neo.client.http - DEBUG - POST '/db/neo4j/tx/commit' '\nCALL db.schema.nodeTypeProperties() YIELD nodeLabels\nRETURN distinct(nodeLabels) as label\n' {}
+2024-03-26 18:06:36,731 - urllib3.connectionpool - DEBUG - http://192.168.30.115:7474 "POST /db/neo4j/tx/commit HTTP/1.1" 200 0
+2024-03-26 18:06:36,733 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:06:36,735 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:06:36,736 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:06:36,738 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:06:36,739 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:06:36,740 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:06:36,743 - py2neo.client.json - DEBUG - Hydrating object ['股票']
+2024-03-26 18:06:36,744 - py2neo.client.json - DEBUG - Hydrating object '股票'
+2024-03-26 18:06:36,745 - py2neo.client.json - DEBUG - Hydrating object []
+2024-03-26 18:06:36,747 - py2neo.client.json - DEBUG - Hydrating object ['财务指标']
+2024-03-26 18:06:36,748 - py2neo.client.json - DEBUG - Hydrating object '财务指标'
+2024-03-26 18:06:36,750 - py2neo.client.json - DEBUG - Hydrating object ['个股研报']
+2024-03-26 18:06:36,752 - py2neo.client.json - DEBUG - Hydrating object '个股研报'
+2024-03-26 18:06:36,754 - py2neo.client.json - DEBUG - Hydrating object ['常用指标']
+2024-03-26 18:06:36,755 - py2neo.client.json - DEBUG - Hydrating object '常用指标'
+2024-03-26 18:06:36,757 - py2neo.client.json - DEBUG - Hydrating object ['每股指标']
+2024-03-26 18:06:36,758 - py2neo.client.json - DEBUG - Hydrating object '每股指标'
+2024-03-26 18:06:36,760 - py2neo.client.json - DEBUG - Hydrating object ['盈利能力']
+2024-03-26 18:06:36,761 - py2neo.client.json - DEBUG - Hydrating object '盈利能力'
+2024-03-26 18:06:36,762 - py2neo.client.json - DEBUG - Hydrating object ['成长能力']
+2024-03-26 18:06:36,763 - py2neo.client.json - DEBUG - Hydrating object '成长能力'
+2024-03-26 18:06:36,763 - py2neo.client.json - DEBUG - Hydrating object ['收益质量']
+2024-03-26 18:06:36,764 - py2neo.client.json - DEBUG - Hydrating object '收益质量'
+2024-03-26 18:06:36,765 - py2neo.client.json - DEBUG - Hydrating object ['财务风险']
+2024-03-26 18:06:36,766 - py2neo.client.json - DEBUG - Hydrating object '财务风险'
+2024-03-26 18:06:36,766 - py2neo.client.json - DEBUG - Hydrating object ['营运能力']
+2024-03-26 18:06:36,767 - py2neo.client.json - DEBUG - Hydrating object '营运能力'
+2024-03-26 18:06:36,768 - py2neo.client.json - DEBUG - Hydrating object ['主营构成']
+2024-03-26 18:06:36,770 - py2neo.client.json - DEBUG - Hydrating object '主营构成'
+2024-03-26 18:06:36,770 - py2neo.client.json - DEBUG - Hydrating object ['主营业务']
+2024-03-26 18:06:36,771 - py2neo.client.json - DEBUG - Hydrating object '主营业务'
+2024-03-26 18:06:36,772 - py2neo.client.json - DEBUG - Hydrating object ['主要股东']
+2024-03-26 18:06:36,773 - py2neo.client.json - DEBUG - Hydrating object '主要股东'
+2024-03-26 18:06:36,774 - py2neo.client.json - DEBUG - Hydrating object ['持股信息']
+2024-03-26 18:06:36,775 - py2neo.client.json - DEBUG - Hydrating object '持股信息'
+2024-03-26 18:07:35,355 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:07:35,356 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:07:35,356 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:07:35,356 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:07:35,358 - py2neo.client.http - DEBUG - POST '/db/neo4j/tx/commit' '\nCALL db.schema.nodeTypeProperties() YIELD propertyName,mandatory \nRETURN distinct(propertyName) as prop, mandatory\n' {}
+2024-03-26 18:07:35,359 - urllib3.connectionpool - DEBUG - Resetting dropped connection: 192.168.30.115
+2024-03-26 18:07:37,105 - urllib3.connectionpool - DEBUG - http://192.168.30.115:7474 "POST /db/neo4j/tx/commit HTTP/1.1" 200 0
+2024-03-26 18:07:37,106 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:07:37,108 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:07:37,110 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:07:37,111 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:07:37,112 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:07:37,114 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:07:37,117 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:07:37,118 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:07:37,121 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:07:37,123 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:07:37,125 - py2neo.client.http - DEBUG - POST '/db/neo4j/tx/commit' '\nCALL db.schema.nodeTypeProperties() YIELD nodeLabels\nRETURN distinct(nodeLabels) as label\n' {}
+2024-03-26 18:07:38,681 - urllib3.connectionpool - DEBUG - http://192.168.30.115:7474 "POST /db/neo4j/tx/commit HTTP/1.1" 200 0
+2024-03-26 18:07:38,684 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:07:38,686 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:07:38,689 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:07:38,691 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:07:38,694 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:07:38,696 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:07:38,699 - py2neo.client.json - DEBUG - Hydrating object ['股票']
+2024-03-26 18:07:38,701 - py2neo.client.json - DEBUG - Hydrating object '股票'
+2024-03-26 18:07:38,703 - py2neo.client.json - DEBUG - Hydrating object []
+2024-03-26 18:07:38,705 - py2neo.client.json - DEBUG - Hydrating object ['财务指标']
+2024-03-26 18:07:38,709 - py2neo.client.json - DEBUG - Hydrating object '财务指标'
+2024-03-26 18:07:38,711 - py2neo.client.json - DEBUG - Hydrating object ['个股研报']
+2024-03-26 18:07:38,712 - py2neo.client.json - DEBUG - Hydrating object '个股研报'
+2024-03-26 18:07:38,713 - py2neo.client.json - DEBUG - Hydrating object ['常用指标']
+2024-03-26 18:07:38,715 - py2neo.client.json - DEBUG - Hydrating object '常用指标'
+2024-03-26 18:07:38,717 - py2neo.client.json - DEBUG - Hydrating object ['每股指标']
+2024-03-26 18:07:38,718 - py2neo.client.json - DEBUG - Hydrating object '每股指标'
+2024-03-26 18:07:38,719 - py2neo.client.json - DEBUG - Hydrating object ['盈利能力']
+2024-03-26 18:07:38,720 - py2neo.client.json - DEBUG - Hydrating object '盈利能力'
+2024-03-26 18:07:38,721 - py2neo.client.json - DEBUG - Hydrating object ['成长能力']
+2024-03-26 18:07:38,723 - py2neo.client.json - DEBUG - Hydrating object '成长能力'
+2024-03-26 18:07:38,724 - py2neo.client.json - DEBUG - Hydrating object ['收益质量']
+2024-03-26 18:07:38,725 - py2neo.client.json - DEBUG - Hydrating object '收益质量'
+2024-03-26 18:07:38,726 - py2neo.client.json - DEBUG - Hydrating object ['财务风险']
+2024-03-26 18:07:38,728 - py2neo.client.json - DEBUG - Hydrating object '财务风险'
+2024-03-26 18:07:38,729 - py2neo.client.json - DEBUG - Hydrating object ['营运能力']
+2024-03-26 18:07:38,730 - py2neo.client.json - DEBUG - Hydrating object '营运能力'
+2024-03-26 18:07:38,731 - py2neo.client.json - DEBUG - Hydrating object ['主营构成']
+2024-03-26 18:07:38,733 - py2neo.client.json - DEBUG - Hydrating object '主营构成'
+2024-03-26 18:07:38,734 - py2neo.client.json - DEBUG - Hydrating object ['主营业务']
+2024-03-26 18:07:38,735 - py2neo.client.json - DEBUG - Hydrating object '主营业务'
+2024-03-26 18:07:38,737 - py2neo.client.json - DEBUG - Hydrating object ['主要股东']
+2024-03-26 18:07:38,738 - py2neo.client.json - DEBUG - Hydrating object '主要股东'
+2024-03-26 18:07:38,738 - py2neo.client.json - DEBUG - Hydrating object ['持股信息']
+2024-03-26 18:07:38,740 - py2neo.client.json - DEBUG - Hydrating object '持股信息'
+2024-03-26 18:07:57,348 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:07:57,350 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:07:57,351 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:07:57,351 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:07:57,352 - py2neo.client.http - DEBUG - POST '/db/neo4j/tx/commit' '\nCALL db.schema.nodeTypeProperties() YIELD propertyName,mandatory \nRETURN distinct(propertyName) as prop, mandatory\n' {}
+2024-03-26 18:07:58,914 - urllib3.connectionpool - DEBUG - http://192.168.30.115:7474 "POST /db/neo4j/tx/commit HTTP/1.1" 200 0
+2024-03-26 18:07:58,916 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:07:58,916 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:07:58,916 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:07:58,917 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:07:58,917 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:07:58,918 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:07:58,919 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:07:58,919 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:07:58,920 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:07:58,920 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:07:58,920 - py2neo.client.http - DEBUG - POST '/db/neo4j/tx/commit' '\nCALL db.schema.nodeTypeProperties() YIELD nodeLabels\nRETURN distinct(nodeLabels) as label\n' {}
+2024-03-26 18:08:00,591 - urllib3.connectionpool - DEBUG - http://192.168.30.115:7474 "POST /db/neo4j/tx/commit HTTP/1.1" 200 0
+2024-03-26 18:08:00,594 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:08:00,596 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:08:00,598 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:08:00,601 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:08:00,603 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:08:00,606 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:08:00,609 - py2neo.client.json - DEBUG - Hydrating object ['股票']
+2024-03-26 18:08:00,611 - py2neo.client.json - DEBUG - Hydrating object '股票'
+2024-03-26 18:08:00,613 - py2neo.client.json - DEBUG - Hydrating object []
+2024-03-26 18:08:00,614 - py2neo.client.json - DEBUG - Hydrating object ['财务指标']
+2024-03-26 18:08:00,616 - py2neo.client.json - DEBUG - Hydrating object '财务指标'
+2024-03-26 18:08:00,618 - py2neo.client.json - DEBUG - Hydrating object ['个股研报']
+2024-03-26 18:08:00,620 - py2neo.client.json - DEBUG - Hydrating object '个股研报'
+2024-03-26 18:08:00,622 - py2neo.client.json - DEBUG - Hydrating object ['常用指标']
+2024-03-26 18:08:00,623 - py2neo.client.json - DEBUG - Hydrating object '常用指标'
+2024-03-26 18:08:00,625 - py2neo.client.json - DEBUG - Hydrating object ['每股指标']
+2024-03-26 18:08:00,627 - py2neo.client.json - DEBUG - Hydrating object '每股指标'
+2024-03-26 18:08:00,628 - py2neo.client.json - DEBUG - Hydrating object ['盈利能力']
+2024-03-26 18:08:00,630 - py2neo.client.json - DEBUG - Hydrating object '盈利能力'
+2024-03-26 18:08:00,631 - py2neo.client.json - DEBUG - Hydrating object ['成长能力']
+2024-03-26 18:08:00,632 - py2neo.client.json - DEBUG - Hydrating object '成长能力'
+2024-03-26 18:08:00,635 - py2neo.client.json - DEBUG - Hydrating object ['收益质量']
+2024-03-26 18:08:00,637 - py2neo.client.json - DEBUG - Hydrating object '收益质量'
+2024-03-26 18:08:00,638 - py2neo.client.json - DEBUG - Hydrating object ['财务风险']
+2024-03-26 18:08:00,639 - py2neo.client.json - DEBUG - Hydrating object '财务风险'
+2024-03-26 18:08:00,640 - py2neo.client.json - DEBUG - Hydrating object ['营运能力']
+2024-03-26 18:08:00,641 - py2neo.client.json - DEBUG - Hydrating object '营运能力'
+2024-03-26 18:08:00,642 - py2neo.client.json - DEBUG - Hydrating object ['主营构成']
+2024-03-26 18:08:00,643 - py2neo.client.json - DEBUG - Hydrating object '主营构成'
+2024-03-26 18:08:00,644 - py2neo.client.json - DEBUG - Hydrating object ['主营业务']
+2024-03-26 18:08:00,645 - py2neo.client.json - DEBUG - Hydrating object '主营业务'
+2024-03-26 18:08:00,645 - py2neo.client.json - DEBUG - Hydrating object ['主要股东']
+2024-03-26 18:08:00,646 - py2neo.client.json - DEBUG - Hydrating object '主要股东'
+2024-03-26 18:08:00,647 - py2neo.client.json - DEBUG - Hydrating object ['持股信息']
+2024-03-26 18:08:00,647 - py2neo.client.json - DEBUG - Hydrating object '持股信息'
+2024-03-26 18:09:15,907 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:09:15,908 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:09:15,909 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:09:15,910 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:09:15,911 - py2neo.client.http - DEBUG - POST '/db/neo4j/tx/commit' '\nCALL db.schema.nodeTypeProperties() YIELD propertyName,mandatory \nRETURN distinct(propertyName) as prop, mandatory\n' {}
+2024-03-26 18:09:15,911 - urllib3.connectionpool - DEBUG - Resetting dropped connection: 192.168.30.115
+2024-03-26 18:09:17,465 - urllib3.connectionpool - DEBUG - http://192.168.30.115:7474 "POST /db/neo4j/tx/commit HTTP/1.1" 200 0
+2024-03-26 18:09:17,468 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:09:17,469 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:09:17,471 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:09:17,473 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:09:17,475 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:09:17,475 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:09:17,478 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:09:17,480 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:09:17,481 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:09:17,482 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:09:17,484 - py2neo.client.http - DEBUG - POST '/db/neo4j/tx/commit' '\nCALL db.schema.nodeTypeProperties() YIELD nodeLabels\nRETURN distinct(nodeLabels) as label\n' {}
+2024-03-26 18:09:19,023 - urllib3.connectionpool - DEBUG - http://192.168.30.115:7474 "POST /db/neo4j/tx/commit HTTP/1.1" 200 0
+2024-03-26 18:09:19,026 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:09:19,028 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:09:19,030 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:09:19,032 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:09:19,035 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:09:19,037 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:09:19,041 - py2neo.client.json - DEBUG - Hydrating object ['股票']
+2024-03-26 18:09:19,043 - py2neo.client.json - DEBUG - Hydrating object '股票'
+2024-03-26 18:09:19,045 - py2neo.client.json - DEBUG - Hydrating object []
+2024-03-26 18:09:19,047 - py2neo.client.json - DEBUG - Hydrating object ['财务指标']
+2024-03-26 18:09:19,051 - py2neo.client.json - DEBUG - Hydrating object '财务指标'
+2024-03-26 18:09:19,053 - py2neo.client.json - DEBUG - Hydrating object ['个股研报']
+2024-03-26 18:09:19,055 - py2neo.client.json - DEBUG - Hydrating object '个股研报'
+2024-03-26 18:09:19,057 - py2neo.client.json - DEBUG - Hydrating object ['常用指标']
+2024-03-26 18:09:19,060 - py2neo.client.json - DEBUG - Hydrating object '常用指标'
+2024-03-26 18:09:19,062 - py2neo.client.json - DEBUG - Hydrating object ['每股指标']
+2024-03-26 18:09:19,064 - py2neo.client.json - DEBUG - Hydrating object '每股指标'
+2024-03-26 18:09:19,065 - py2neo.client.json - DEBUG - Hydrating object ['盈利能力']
+2024-03-26 18:09:19,066 - py2neo.client.json - DEBUG - Hydrating object '盈利能力'
+2024-03-26 18:09:19,067 - py2neo.client.json - DEBUG - Hydrating object ['成长能力']
+2024-03-26 18:09:19,069 - py2neo.client.json - DEBUG - Hydrating object '成长能力'
+2024-03-26 18:09:19,070 - py2neo.client.json - DEBUG - Hydrating object ['收益质量']
+2024-03-26 18:09:19,071 - py2neo.client.json - DEBUG - Hydrating object '收益质量'
+2024-03-26 18:09:19,072 - py2neo.client.json - DEBUG - Hydrating object ['财务风险']
+2024-03-26 18:09:19,073 - py2neo.client.json - DEBUG - Hydrating object '财务风险'
+2024-03-26 18:09:19,074 - py2neo.client.json - DEBUG - Hydrating object ['营运能力']
+2024-03-26 18:09:19,075 - py2neo.client.json - DEBUG - Hydrating object '营运能力'
+2024-03-26 18:09:19,076 - py2neo.client.json - DEBUG - Hydrating object ['主营构成']
+2024-03-26 18:09:19,077 - py2neo.client.json - DEBUG - Hydrating object '主营构成'
+2024-03-26 18:09:19,078 - py2neo.client.json - DEBUG - Hydrating object ['主营业务']
+2024-03-26 18:09:19,079 - py2neo.client.json - DEBUG - Hydrating object '主营业务'
+2024-03-26 18:09:19,081 - py2neo.client.json - DEBUG - Hydrating object ['主要股东']
+2024-03-26 18:09:19,081 - py2neo.client.json - DEBUG - Hydrating object '主要股东'
+2024-03-26 18:09:19,082 - py2neo.client.json - DEBUG - Hydrating object ['持股信息']
+2024-03-26 18:09:19,083 - py2neo.client.json - DEBUG - Hydrating object '持股信息'
+2024-03-26 18:13:16,652 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:13:16,653 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:13:16,655 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:13:16,655 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:13:16,656 - py2neo.client.http - DEBUG - POST '/db/neo4j/tx/commit' '\nCALL db.schema.nodeTypeProperties() YIELD propertyName,mandatory \nRETURN distinct(propertyName) as prop, mandatory\n' {}
+2024-03-26 18:13:16,657 - urllib3.connectionpool - DEBUG - Resetting dropped connection: 192.168.30.115
+2024-03-26 18:13:21,134 - urllib3.connectionpool - DEBUG - http://192.168.30.115:7474 "POST /db/neo4j/tx/commit HTTP/1.1" 200 0
+2024-03-26 18:13:21,136 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:13:21,137 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:13:21,139 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:13:21,141 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:13:21,141 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:13:21,142 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:13:21,145 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:13:21,147 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:13:21,148 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:13:21,149 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:13:21,151 - py2neo.client.http - DEBUG - POST '/db/neo4j/tx/commit' '\nCALL db.schema.nodeTypeProperties() YIELD nodeLabels\nRETURN distinct(nodeLabels) as label\n' {}
+2024-03-26 18:13:23,230 - urllib3.connectionpool - DEBUG - http://192.168.30.115:7474 "POST /db/neo4j/tx/commit HTTP/1.1" 200 0
+2024-03-26 18:13:23,234 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:13:23,237 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:13:23,240 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:13:23,242 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:13:23,244 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:13:23,247 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:13:23,251 - py2neo.client.json - DEBUG - Hydrating object ['股票']
+2024-03-26 18:13:23,253 - py2neo.client.json - DEBUG - Hydrating object '股票'
+2024-03-26 18:13:23,257 - py2neo.client.json - DEBUG - Hydrating object []
+2024-03-26 18:13:23,259 - py2neo.client.json - DEBUG - Hydrating object ['财务指标']
+2024-03-26 18:13:23,261 - py2neo.client.json - DEBUG - Hydrating object '财务指标'
+2024-03-26 18:13:23,262 - py2neo.client.json - DEBUG - Hydrating object ['个股研报']
+2024-03-26 18:13:23,264 - py2neo.client.json - DEBUG - Hydrating object '个股研报'
+2024-03-26 18:13:23,266 - py2neo.client.json - DEBUG - Hydrating object ['常用指标']
+2024-03-26 18:13:23,267 - py2neo.client.json - DEBUG - Hydrating object '常用指标'
+2024-03-26 18:13:23,269 - py2neo.client.json - DEBUG - Hydrating object ['每股指标']
+2024-03-26 18:13:23,270 - py2neo.client.json - DEBUG - Hydrating object '每股指标'
+2024-03-26 18:13:23,272 - py2neo.client.json - DEBUG - Hydrating object ['盈利能力']
+2024-03-26 18:13:23,273 - py2neo.client.json - DEBUG - Hydrating object '盈利能力'
+2024-03-26 18:13:23,275 - py2neo.client.json - DEBUG - Hydrating object ['成长能力']
+2024-03-26 18:13:23,277 - py2neo.client.json - DEBUG - Hydrating object '成长能力'
+2024-03-26 18:13:23,278 - py2neo.client.json - DEBUG - Hydrating object ['收益质量']
+2024-03-26 18:13:23,280 - py2neo.client.json - DEBUG - Hydrating object '收益质量'
+2024-03-26 18:13:23,282 - py2neo.client.json - DEBUG - Hydrating object ['财务风险']
+2024-03-26 18:13:23,283 - py2neo.client.json - DEBUG - Hydrating object '财务风险'
+2024-03-26 18:13:23,284 - py2neo.client.json - DEBUG - Hydrating object ['营运能力']
+2024-03-26 18:13:23,287 - py2neo.client.json - DEBUG - Hydrating object '营运能力'
+2024-03-26 18:13:23,288 - py2neo.client.json - DEBUG - Hydrating object ['主营构成']
+2024-03-26 18:13:23,290 - py2neo.client.json - DEBUG - Hydrating object '主营构成'
+2024-03-26 18:13:23,290 - py2neo.client.json - DEBUG - Hydrating object ['主营业务']
+2024-03-26 18:13:23,291 - py2neo.client.json - DEBUG - Hydrating object '主营业务'
+2024-03-26 18:13:23,293 - py2neo.client.json - DEBUG - Hydrating object ['主要股东']
+2024-03-26 18:13:23,293 - py2neo.client.json - DEBUG - Hydrating object '主要股东'
+2024-03-26 18:13:23,294 - py2neo.client.json - DEBUG - Hydrating object ['持股信息']
+2024-03-26 18:13:23,294 - py2neo.client.json - DEBUG - Hydrating object '持股信息'
+2024-03-26 18:14:21,050 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:14:21,051 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:14:21,052 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:14:21,053 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:14:21,054 - py2neo.client.http - DEBUG - POST '/db/neo4j/tx/commit' '\nCALL db.schema.nodeTypeProperties() YIELD propertyName,mandatory \nRETURN distinct(propertyName) as prop, mandatory\n' {}
+2024-03-26 18:14:21,055 - urllib3.connectionpool - DEBUG - Resetting dropped connection: 192.168.30.115
+2024-03-26 18:14:22,747 - urllib3.connectionpool - DEBUG - http://192.168.30.115:7474 "POST /db/neo4j/tx/commit HTTP/1.1" 200 0
+2024-03-26 18:14:22,749 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:14:22,750 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:14:22,752 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:14:22,753 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:14:22,754 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:14:22,755 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:14:22,758 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:14:22,760 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:14:22,761 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:14:22,762 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:14:22,764 - py2neo.client.http - DEBUG - POST '/db/neo4j/tx/commit' '\nCALL db.schema.nodeTypeProperties() YIELD nodeLabels\nRETURN distinct(nodeLabels) as label\n' {}
+2024-03-26 18:14:24,421 - urllib3.connectionpool - DEBUG - http://192.168.30.115:7474 "POST /db/neo4j/tx/commit HTTP/1.1" 200 0
+2024-03-26 18:14:24,424 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:14:24,426 - py2neo.client - DEBUG - Attempting to acquire read-write connection to 'neo4j'
+2024-03-26 18:14:24,428 - py2neo.client - DEBUG - Using connection pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:14:24,430 - py2neo.client - DEBUG - Trying to acquire connection from pool <py2neo.client.ConnectionPool object at 0x0000024543CF8910>
+2024-03-26 18:14:24,432 - py2neo.client - DEBUG - Connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> acquired by thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:14:24,434 - py2neo.client - DEBUG - Releasing connection <py2neo.client.http.HTTP object at 0x00000245443C1D90> from thread <_MainThread(MainThread, started 18444)>
+2024-03-26 18:14:24,435 - py2neo.client.json - DEBUG - Hydrating object ['股票']
+2024-03-26 18:14:24,437 - py2neo.client.json - DEBUG - Hydrating object '股票'
+2024-03-26 18:14:24,439 - py2neo.client.json - DEBUG - Hydrating object []
+2024-03-26 18:14:24,441 - py2neo.client.json - DEBUG - Hydrating object ['财务指标']
+2024-03-26 18:14:24,442 - py2neo.client.json - DEBUG - Hydrating object '财务指标'
+2024-03-26 18:14:24,444 - py2neo.client.json - DEBUG - Hydrating object ['个股研报']
+2024-03-26 18:14:24,445 - py2neo.client.json - DEBUG - Hydrating object '个股研报'
+2024-03-26 18:14:24,448 - py2neo.client.json - DEBUG - Hydrating object ['常用指标']
+2024-03-26 18:14:24,450 - py2neo.client.json - DEBUG - Hydrating object '常用指标'
+2024-03-26 18:14:24,452 - py2neo.client.json - DEBUG - Hydrating object ['每股指标']
+2024-03-26 18:14:24,453 - py2neo.client.json - DEBUG - Hydrating object '每股指标'
+2024-03-26 18:14:24,454 - py2neo.client.json - DEBUG - Hydrating object ['盈利能力']
+2024-03-26 18:14:24,456 - py2neo.client.json - DEBUG - Hydrating object '盈利能力'
+2024-03-26 18:14:24,458 - py2neo.client.json - DEBUG - Hydrating object ['成长能力']
+2024-03-26 18:14:24,459 - py2neo.client.json - DEBUG - Hydrating object '成长能力'
+2024-03-26 18:14:24,460 - py2neo.client.json - DEBUG - Hydrating object ['收益质量']
+2024-03-26 18:14:24,462 - py2neo.client.json - DEBUG - Hydrating object '收益质量'
+2024-03-26 18:14:24,463 - py2neo.client.json - DEBUG - Hydrating object ['财务风险']
+2024-03-26 18:14:24,464 - py2neo.client.json - DEBUG - Hydrating object '财务风险'
+2024-03-26 18:14:24,464 - py2neo.client.json - DEBUG - Hydrating object ['营运能力']
+2024-03-26 18:14:24,466 - py2neo.client.json - DEBUG - Hydrating object '营运能力'
+2024-03-26 18:14:24,466 - py2neo.client.json - DEBUG - Hydrating object ['主营构成']
+2024-03-26 18:14:24,467 - py2neo.client.json - DEBUG - Hydrating object '主营构成'
+2024-03-26 18:14:24,469 - py2neo.client.json - DEBUG - Hydrating object ['主营业务']
+2024-03-26 18:14:24,469 - py2neo.client.json - DEBUG - Hydrating object '主营业务'
+2024-03-26 18:14:24,470 - py2neo.client.json - DEBUG - Hydrating object ['主要股东']
+2024-03-26 18:14:24,471 - py2neo.client.json - DEBUG - Hydrating object '主要股东'
+2024-03-26 18:14:24,472 - py2neo.client.json - DEBUG - Hydrating object ['持股信息']
+2024-03-26 18:14:24,473 - py2neo.client.json - DEBUG - Hydrating object '持股信息'
