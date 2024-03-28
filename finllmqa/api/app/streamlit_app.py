@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 import json
 
-from finllmqa.api.core import STREAM_API_PORT
+from finllmqa.api.core import SERVER_API_URL
 
 st.set_page_config(
     page_title="AutoGen Chat Agents",
@@ -30,7 +30,7 @@ if user_input:
     display_num = 0
     response = {"stop": False}
     while not response['stop']:
-        res = requests.post(url=STREAM_API_PORT,
+        res = requests.post(url=SERVER_API_URL,
                             json={'prompt': user_input}).content
         response = json.loads(res)
         answer_list = response['answer']

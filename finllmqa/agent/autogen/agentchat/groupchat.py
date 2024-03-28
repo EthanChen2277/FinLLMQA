@@ -5,8 +5,8 @@ import sys
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Literal, Optional, Tuple, Union
 
-from autogen.agentchat.agent import Agent
-from autogen.agentchat.conversable_agent import ConversableAgent
+from finllmqa.agent.autogen.agentchat.agent import Agent
+from finllmqa.agent.autogen.agentchat.conversable_agent import ConversableAgent
 
 from ..code_utils import content_str
 from ..exception_utils import AgentNameConflict, NoEligibleSpeaker, UndefinedNextAgent

@@ -13,7 +13,7 @@ from chromadb.api.types import QueryResult
 import chromadb.utils.embedding_functions as ef
 import logging
 import pypdf
-from autogen.token_count_utils import count_token
+from .token_count_utils import count_token
 
 try:
     from unstructured.partition.auto import partition

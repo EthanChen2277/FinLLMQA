@@ -5,11 +5,11 @@ import time
 import logging
 import copy
 
-from autogen import OpenAIWrapper
-from autogen.oai.openai_utils import retrieve_assistants_by_name
-from autogen.agentchat.agent import Agent
-from autogen.agentchat.assistant_agent import ConversableAgent
-from autogen.agentchat.assistant_agent import AssistantAgent
+from finllmqa.agent.autogen import OpenAIWrapper
+from finllmqa.agent.autogen.oai.openai_utils import retrieve_assistants_by_name
+from finllmqa.agent.autogen.agentchat.agent import Agent
+from finllmqa.agent.autogen.agentchat.assistant_agent import ConversableAgent
+from finllmqa.agent.autogen.agentchat.assistant_agent import AssistantAgent
 from typing import Dict, Optional, Union, List, Tuple, Any
 
 logger = logging.getLogger(__name__)

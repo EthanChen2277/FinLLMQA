@@ -7,8 +7,8 @@ import sqlite3
 import threading
 import uuid
 
-from autogen.logger.base_logger import BaseLogger
-from autogen.logger.logger_utils import get_current_ts, to_dict
+from finllmqa.agent.autogen.logger.base_logger import BaseLogger
+from finllmqa.agent.autogen.logger.logger_utils import get_current_ts, to_dict
 
 from openai import OpenAI, AzureOpenAI
 from openai.types.chat import ChatCompletion
@@ -17,7 +17,7 @@ from .base_logger import LLMConfig
 
 
 if TYPE_CHECKING:
-    from autogen import ConversableAgent, OpenAIWrapper
+    from finllmqa.agent.autogen import ConversableAgent, OpenAIWrapper
 
 logger = logging.getLogger(__name__)
 lock = threading.Lock()
@@ -214,7 +214,7 @@ class SqliteLogger(BaseLogger):
         self._run_query(query=query, args=args)
 
     def log_new_agent(self, agent: ConversableAgent, init_args: Dict[str, Any]) -> None:
-        from autogen import Agent
+        from finllmqa.agent.autogen import Agent
 
         if self.con is None:
             return

@@ -3,9 +3,9 @@ from typing import Dict, Optional, Union
 import chromadb
 from chromadb.config import Settings
 import pickle
-from autogen.agentchat.assistant_agent import ConversableAgent
-from autogen.agentchat.contrib.capabilities.agent_capability import AgentCapability
-from autogen.agentchat.contrib.text_analyzer_agent import TextAnalyzerAgent
+from finllmqa.agent.autogen.agentchat.assistant_agent import ConversableAgent
+from finllmqa.agent.autogen.agentchat.contrib.capabilities.agent_capability import AgentCapability
+from finllmqa.agent.autogen.agentchat.contrib.text_analyzer_agent import TextAnalyzerAgent
 from ....formatting_utils import colored
 
 

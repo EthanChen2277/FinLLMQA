@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional
-from autogen.logger.base_logger import BaseLogger
-from autogen.logger.sqlite_logger import SqliteLogger
+from finllmqa.agent.autogen.logger.base_logger import BaseLogger
+from finllmqa.agent.autogen.logger.sqlite_logger import SqliteLogger
 
 __all__ = ("LoggerFactory",)
 

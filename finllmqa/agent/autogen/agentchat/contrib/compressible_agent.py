@@ -1,12 +1,12 @@
 from typing import Callable, Dict, Optional, Union, Tuple, List, Any
-from autogen import OpenAIWrapper
-from autogen import Agent, ConversableAgent
 import copy
 import asyncio
 import logging
 import inspect
-from autogen.token_count_utils import count_token, get_max_token_limit, num_tokens_from_functions
 
+from finllmqa.agent.autogen import OpenAIWrapper
+from finllmqa.agent.autogen import Agent, ConversableAgent
+from ...token_count_utils import count_token, get_max_token_limit, num_tokens_from_functions
 from ...formatting_utils import colored
 
 logger = logging.getLogger(__name__)

@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from hashlib import md5
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from autogen import oai
+from finllmqa.agent.autogen import oai
 
 import docker
 

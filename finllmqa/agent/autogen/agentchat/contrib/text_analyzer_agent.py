@@ -1,5 +1,5 @@
-from autogen import oai
-from autogen.agentchat.agent import Agent
+from finllmqa.agent.autogen import oai
+from finllmqa.agent.autogen.agentchat.agent import Agent
 from autogen.agentchat.assistant_agent import ConversableAgent
 from typing import Callable, Dict, Optional, Union, List, Tuple, Any
 

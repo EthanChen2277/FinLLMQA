@@ -3,6 +3,7 @@ import uvicorn
 import json
 import datetime
 import threading
+from pydantic import ConfigDict, BaseModel
 
 from finllmqa.agent import autogen
 from finllmqa.agent.autogen.oai.client import stream_buffer
@@ -11,7 +12,16 @@ from finllmqa.api.core import LLM_URL
 autogen_app = FastAPI()
 
 
-def autogen_stream(prompt, history):
+class GetStream(BaseModel):
+    prompt: str = None,
+    model_config = ConfigDict(json_schema_extra={
+        'example': {
+            'prompt': '你好'
+        }
+    })
+
+
+def autogen_stream(prompt):
     config_list_gpt = [
         {
             "model": "chatglm3-6b",
@@ -27,7 +37,10 @@ def autogen_stream(prompt, history):
     user_proxy = autogen.UserProxyAgent(
         name="智能体",
         system_message="智能管理员",
-        human_input_mode="NEVER"
+        human_input_mode="NEVER",
+        code_execution_config={
+            'use_docker': False
+        }
     )
     analyst = autogen.AssistantAgent(
         name="金融分析师",
@@ -44,6 +57,7 @@ def autogen_stream(prompt, history):
         agents=[user_proxy, analyst, critic], messages=[], max_round=5)
     manager = autogen.GroupChatManager(
         groupchat=groupchat, llm_config=llm_config)
+    print('start chat')
     user_proxy.initiate_chat(
         manager, message=prompt)
     stream_buffer[prompt]["stop"] = True
@@ -64,15 +78,12 @@ def remove_timeout_buffer():
 
 
 @autogen_app.post("/autogen/stream")
-async def create_item(request: Request):
+async def create_item(model: GetStream):
     # 删除过期的buffer
     remove_timeout_buffer()
     # 获取入参
-    json_post_raw = await request.json()
-    json_post = json.dumps(json_post_raw)
-    json_post_list = json.loads(json_post)
-    prompt = json_post_list.get('prompt')
-    history = json_post_list.get('history')
+    prompt = model.prompt
+    print(type(prompt))
     stop = False
     # 判断是否已在生成，只有首次才调stream_chat
     now = datetime.datetime.now()
@@ -93,7 +104,7 @@ async def create_item(request: Request):
                                  "stop": stop, "time": now}
         # 在线程中调用stream_chat
         sub_thread = threading.Thread(
-            target=autogen_stream, args=(prompt, history))
+            target=autogen_stream, args=[prompt])
         sub_thread.start()
     # 异步返回response
     time = now.strftime("%Y-%m-%d %H:%M:%S")

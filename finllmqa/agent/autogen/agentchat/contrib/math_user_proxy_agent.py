@@ -4,10 +4,10 @@ from pydantic import BaseModel, Extra, root_validator
 from typing import Any, Callable, Dict, List, Optional, Union, Tuple
 from time import sleep
 
-from autogen._pydantic import PYDANTIC_V1
-from autogen.agentchat import Agent, UserProxyAgent
-from autogen.code_utils import UNKNOWN, extract_code, execute_code, infer_lang
-from autogen.math_utils import get_answer
+from finllmqa.agent.autogen._pydantic import PYDANTIC_V1
+from finllmqa.agent.autogen.agentchat import Agent, UserProxyAgent
+from finllmqa.agent.autogen.code_utils import UNKNOWN, extract_code, execute_code, infer_lang
+from finllmqa.agent.autogen.math_utils import get_answer
 
 
 PROMPTS = {

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from autogen.logger.logger_factory import LoggerFactory
-from autogen.logger.base_logger import LLMConfig
+from finllmqa.agent.autogen.logger.logger_factory import LoggerFactory
+from finllmqa.agent.autogen.logger.base_logger import LLMConfig
 
 import logging
 import sqlite3
@@ -12,7 +12,7 @@ from openai import OpenAI, AzureOpenAI
 from openai.types.chat import ChatCompletion
 
 if TYPE_CHECKING:
-    from autogen import ConversableAgent, OpenAIWrapper
+    from finllmqa.agent.autogen import ConversableAgent, OpenAIWrapper
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,7 @@ from openai import OpenAI, AzureOpenAI
 from openai.types.chat import ChatCompletion
 
 if TYPE_CHECKING:
-    from autogen import ConversableAgent, OpenAIWrapper
+    from finllmqa.agent.autogen import ConversableAgent, OpenAIWrapper
 
 ConfigItem = Dict[str, Union[str, List[str]]]
 LLMConfig = Dict[str, Union[None, float, int, ConfigItem, List[ConfigItem]]]

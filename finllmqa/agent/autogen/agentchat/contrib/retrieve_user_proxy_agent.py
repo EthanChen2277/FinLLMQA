@@ -6,12 +6,12 @@ try:
     import chromadb
 except ImportError:
     raise ImportError("Please install dependencies first. `pip install pyautogen[retrievechat]`")
-from autogen.agentchat.agent import Agent
-from autogen.agentchat import UserProxyAgent
-from autogen.retrieve_utils import create_vector_db_from_dir, query_vector_db, TEXT_FORMATS
-from autogen.token_count_utils import count_token
-from autogen.code_utils import extract_code
-from autogen import logger
+from finllmqa.agent.autogen.agentchat.agent import Agent
+from finllmqa.agent.autogen.agentchat import UserProxyAgent
+from finllmqa.agent.autogen.retrieve_utils import create_vector_db_from_dir, query_vector_db, TEXT_FORMATS
+from finllmqa.agent.autogen.token_count_utils import count_token
+from finllmqa.agent.autogen.code_utils import extract_code
+from finllmqa.agent.autogen import logger
 from ...formatting_utils import colored
 
 

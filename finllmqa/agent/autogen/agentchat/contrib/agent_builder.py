@@ -1,4 +1,4 @@
-import autogen
+from finllmqa.agent import autogen
 import time
 import subprocess as sp
 import socket
@@ -286,7 +286,7 @@ output after executing the code) and provide a corrected answer or code.
             {"config_list": config_list, "model": model_name_or_hf_repo, "max_tokens": self.max_tokens}
         )
         if use_oai_assistant:
-            from autogen.agentchat.contrib.gpt_assistant_agent import GPTAssistantAgent
+            from finllmqa.agent.autogen.agentchat.contrib.gpt_assistant_agent import GPTAssistantAgent
 
             agent = GPTAssistantAgent(
                 name=agent_name,

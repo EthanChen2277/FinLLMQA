@@ -11,12 +11,12 @@ from flaml.automl.logger import logger_formatter
 from pydantic import BaseModel
 from typing import Protocol
 
-from autogen.cache.cache import Cache
-from autogen.oai.openai_utils import get_key, is_valid_api_key, OAI_PRICE1K
-from autogen.token_count_utils import count_token
+from finllmqa.agent.autogen.cache.cache import Cache
+from finllmqa.agent.autogen.oai.openai_utils import get_key, is_valid_api_key, OAI_PRICE1K
+from finllmqa.agent.autogen.token_count_utils import count_token
 
-from autogen.runtime_logging import logging_enabled, log_chat_completion, log_new_client, log_new_wrapper
-from autogen.logger.logger_utils import get_current_ts
+from finllmqa.agent.autogen.runtime_logging import logging_enabled, log_chat_completion, log_new_client, log_new_wrapper
+from finllmqa.agent.autogen.logger.logger_utils import get_current_ts
 
 TOOL_ENABLED = False
 try:

@@ -4,7 +4,7 @@ import traceback
 import copy
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Union, Callable, Literal, Tuple
-from autogen import Agent, ConversableAgent, GroupChatManager, GroupChat, OpenAIWrapper
+from finllmqa.agent.autogen import Agent, ConversableAgent, GroupChatManager, GroupChat, OpenAIWrapper
 
 
 class SocietyOfMindAgent(ConversableAgent):

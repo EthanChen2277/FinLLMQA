@@ -4,10 +4,10 @@ from typing import List, Optional, Tuple
 import replicate
 import requests
 
-from autogen.agentchat.agent import Agent
-from autogen.agentchat.contrib.img_utils import get_image_data, llava_formatter
-from autogen.agentchat.contrib.multimodal_conversable_agent import MultimodalConversableAgent
-from autogen.code_utils import content_str
+from finllmqa.agent.autogen.agentchat.agent import Agent
+from finllmqa.agent.autogen.agentchat.contrib.img_utils import get_image_data, llava_formatter
+from finllmqa.agent.autogen.agentchat.contrib.multimodal_conversable_agent import MultimodalConversableAgent
+from finllmqa.agent.autogen.code_utils import content_str
 from ...formatting_utils import colored
 
 
