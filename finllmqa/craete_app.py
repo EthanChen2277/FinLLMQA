@@ -1,4 +1,4 @@
-from api.app import *
+from finllmqa.api.app import *
 
 if __name__ == '__main__':
     # # create llm app

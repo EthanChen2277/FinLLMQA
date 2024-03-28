@@ -1,5 +1,6 @@
 import requests
-from core import EMBEDDING_URL
+
+from finllmqa.api.core import EMBEDDING_URL
 
 
 def embedding_request(text: str):

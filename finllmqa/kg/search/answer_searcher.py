@@ -3,19 +3,13 @@ import logging
 import math
 import time
 from py2neo import Graph
-import question_parser
 import heapq
 import re
 import tiktoken
 from datetime import datetime, timedelta
 import random
-import pandas as pd
 
-# from py2neo.packages.httpstream import http
-# http.socket_timeout = 9999
-
-import threading
-from queue import Queue
+from finllmqa.kg.search.question_parser import QuestionParser
 
 
 class AnswerSearcher:
@@ -83,7 +77,7 @@ class AnswerSearcher:
 
         self.first_step_labels = [x['labels'] for x in self.g.run(
             "match (n:`股票`)-[*0..1]-(m) where n.name = '光洋股份' return distinct labels(m) as labels").data()]
-        self.QP = question_parser.QuestionParser(self.knowledge)
+        self.QP = QuestionParser(self.knowledge)
         self.encoding = tiktoken.get_encoding(encoding_name)
         self.max_length = max_length
         self.timeout = timeout  # 设置查询超时时间（以秒为单位）

@@ -1,7 +1,8 @@
 import json
 import os
 from pathlib import Path
-from vector_db.construct.core import *
+
+from finllmqa.vector_db.construct.core import *
 
 if __name__ == '__main__':
 

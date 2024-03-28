@@ -1,11 +1,12 @@
 from fastapi import FastAPI, Request
-from ...agent import autogen
 import uvicorn
 import json
 import datetime
 import threading
-from ...agent.autogen.oai.client import stream_buffer
-from api.core import LLM_URL
+
+from finllmqa.agent import autogen
+from finllmqa.agent.autogen.oai.client import stream_buffer
+from finllmqa.api.core import LLM_URL
 
 autogen_app = FastAPI()
 

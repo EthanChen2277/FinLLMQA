@@ -10,7 +10,7 @@ finllmqa.egg-info/dependency_links.txt
 finllmqa.egg-info/requires.txt
 finllmqa.egg-info/top_level.txt
 finllmqa/agent/__init__.py
-finllmqa/agent/client.py
+finllmqa/agent/setup.py
 finllmqa/agent/tools.py
 finllmqa/agent/autogen/__init__.py
 finllmqa/agent/autogen/_pydantic.py
@@ -26,7 +26,6 @@ finllmqa/agent/autogen/math_utils.py
 finllmqa/agent/autogen/project.py
 finllmqa/agent/autogen/retrieve_utils.py
 finllmqa/agent/autogen/runtime_logging.py
-finllmqa/agent/autogen/setup.py
 finllmqa/agent/autogen/token_count_utils.py
 finllmqa/agent/autogen/types.py
 finllmqa/agent/autogen/utils.py
@@ -100,6 +99,8 @@ finllmqa/kg/__init__.py
 finllmqa/kg/search/__init__.py
 finllmqa/kg/search/answer_searcher.py
 finllmqa/kg/search/question_parser.py
+finllmqa/llm/__init__.py
+finllmqa/llm/test.py
 finllmqa/vector_db/__init__.py
 finllmqa/vector_db/construct/__init__.py
 finllmqa/vector_db/construct/core.py

@@ -3,8 +3,8 @@ from pymilvus.orm import utility
 from typing import List
 from tqdm import tqdm
 
-from api.embedding import get_embedding
-from api.core import LOCAL_HOST, MILVUS_API_PORT
+from finllmqa.api.embedding import get_embedding
+from finllmqa.api.core import LOCAL_HOST, MILVUS_API_PORT
 
 
 class Milvus:

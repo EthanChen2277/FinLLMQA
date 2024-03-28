@@ -1,8 +1,8 @@
 import streamlit as st
-import asyncio
 import requests
 import json
-from autogen import AssistantAgent, UserProxyAgent
+
+from finllmqa.api.core import STREAM_API_PORT
 
 st.set_page_config(
     page_title="AutoGen Chat Agents",
@@ -27,23 +27,10 @@ if user_input:
             '请先选择模型！', icon="⚠️")
         st.stop()
 
-    llm_config = {
-        "config_list": [
-            {
-                "model": selected_model,
-                "base_url": "http://localhost:8000/v1",
-                "api_type": "open_ai",
-                "api_key": 'NULL'
-            }
-        ]
-    }
-
-    # # Run the asynchronous function within the event loop
-    # loop.run_until_complete(initiate_chat())
     display_num = 0
     response = {"stop": False}
     while not response['stop']:
-        res = requests.post(url='http://localhost:8006/stream',
+        res = requests.post(url=STREAM_API_PORT,
                             json={'prompt': user_input}).content
         response = json.loads(res)
         answer_list = response['answer']
