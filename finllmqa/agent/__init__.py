@@ -1,1 +1,1 @@
-from .autogen import *
+from finllmqa.agent.autogen import *
