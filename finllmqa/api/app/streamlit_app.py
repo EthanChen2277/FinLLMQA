@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 import json
 
-from finllmqa.api.core import SERVER_API_URL
+from finllmqa.api.core import STREAM_API_URL
 
 st.set_page_config(
     page_title="AutoGen Chat Agents",

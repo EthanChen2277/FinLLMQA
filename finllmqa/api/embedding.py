@@ -1,13 +1,13 @@
 import requests
 
-from finllmqa.api.core import EMBEDDING_URL
+from finllmqa.api.core import EMBEDDING_API_URL
 
 
 def embedding_request(text: str):
     body = {
         'input': text
     }
-    url = EMBEDDING_URL
+    url = EMBEDDING_API_URL
     res = requests.post(url, json=body)
     if res.status_code == 200:
         json = res.json()

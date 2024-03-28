@@ -7,7 +7,7 @@ import logging
 from urllib.parse import urljoin
 import pymysql
 import requests
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 import pandas as pd
 import asyncio
 from copy import deepcopy
@@ -17,10 +17,10 @@ from langchain import PromptTemplate, LLMChain
 from langchain_community.llms.chatglm3 import ChatGLM3
 
 
-from kg.search import AnswerSearcher
-from api.embedding import get_embedding
-from api.core import SERVER_API_URL, SERVER_LLM_API_PORT, CHAT_URL
-from vector_db.construct import Milvus
+from finllmqa.kg.search import AnswerSearcher
+from finllmqa.api.embedding import get_embedding
+from finllmqa.api.core import SERVER_API_URL, SERVER_LLM_API_PORT, CHAT_API_URL
+from finllmqa.vector_db.construct import Milvus
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -760,7 +760,7 @@ def progress_to_redis(question_id, text):
 
 if __name__ == "__main__":
     llm = ChatGLM3(
-        endpoint_url=SERVER_API_URL+SERVER_LLM_API_PORT+CHAT_URL,
+        endpoint_url=SERVER_API_URL+SERVER_LLM_API_PORT+CHAT_API_URL,
         max_tokens=8096,
         top_p=0.9
     )

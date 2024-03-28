@@ -7,7 +7,7 @@ from pydantic import ConfigDict, BaseModel
 
 from finllmqa.agent import autogen
 from finllmqa.agent.autogen.oai.client import stream_buffer
-from finllmqa.api.core import LLM_URL
+from finllmqa.api.core import LLM_API_URL
 
 autogen_app = FastAPI()
 
@@ -25,7 +25,7 @@ def autogen_stream(prompt):
     config_list_gpt = [
         {
             "model": "chatglm3-6b",
-            "base_url": LLM_URL,
+            "base_url": LLM_API_URL,
             "api_type": "openai",
             "api_key": "NULL",
         }
