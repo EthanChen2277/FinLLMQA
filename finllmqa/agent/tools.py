@@ -75,7 +75,7 @@ class BaseModel(ABC):
         )
         return resp
     
-    #异步调用组件
+    # 异步调用组件
     async def async_generate(self, query):
         self.get_reference(query)
         # 将回答的问题开启流式输出
@@ -275,7 +275,7 @@ class KGRetrieveTool(BaseModel):
         self._template = prompt
         self.get_llm_chain()
 
-    #异步调用llm
+    # 异步调用llm
     async def async_generate(self, query, chain, reference):
         try:
             resp = await chain.apredict(
@@ -292,11 +292,11 @@ class KGRetrieveTool(BaseModel):
                 resp = ''
         return resp
     
-    async def genereate_multi_reply_concurrently(self,query,question_analysis):
-        #以知识图谱为数据底层，以大模型为知识补充
-        #分别存储以知识图谱和语言模型作为知识支撑的答案生成调用
-        data_pool = {'indicators':[],'function_call':[]}
-        llm_pool = {'indicators':[],'function_call':[]}
+    async def genereate_multi_reply_concurrently(self, query, question_analysis):
+        # 以知识图谱为数据底层，以大模型为知识补充
+        # 分别存储以知识图谱和语言模型作为知识支撑的答案生成调用
+        data_pool = {'indicators': [], 'function_call': []}
+        llm_pool = {'indicators': [], 'function_call': []}
         data_prompt = """
         请你根据以下给出的数据和问题，找出要回答这个问题可以利用哪些数据，并对已知的数据进行分析
         请你给出具体的分析结果，不用回答问题
@@ -335,11 +335,11 @@ class KGRetrieveTool(BaseModel):
                 for name, code in stock_map.items():
                     mk_data += self.get_mk_data(name,code,start_date,end_date)
                 reference = dict(
-                    data = mk_data
+                    data=mk_data
                 )
                 data_pool['indicators'].append(indicator)
                 data_pool['function_call'].append(self.async_generate(mk_query,data_chain,reference))
-            if  'indicator_db' in db_call:
+            if 'indicator_db' in db_call:
                 #技术指标分析
                 stock_map = question_analysis['stock_map']
                 time_list = self.parse_market_time(question_analysis['发布时间'])
@@ -348,12 +348,12 @@ class KGRetrieveTool(BaseModel):
                 end_date = max(time_list)
                 mk_query = f"从{'、'.join(attrs)}的角度出发，回答{query}"
                 for name, code in stock_map.items():
-                    mk_data += self.get_mk_indicator(name,code,start_date,end_date)
+                    mk_data += self.get_mk_indicator(name, code, start_date, end_date)
                 reference = dict(
-                    data = mk_data
+                    data=mk_data
                 )
                 data_pool['indicators'].append(indicator)
-                data_pool['function_call'].append(self.async_generate(mk_query,data_chain,reference))
+                data_pool['function_call'].append(self.async_generate(mk_query, data_chain, reference))
             
             if 'finance_db' in db_call:
                 effective_kg_question_analysis = deepcopy(question_analysis)
@@ -363,22 +363,22 @@ class KGRetrieveTool(BaseModel):
                         effective_kg_question_analysis['intent'].append(attribute_res[0].get('text'))
                         table_question_analysis['intent'].append(attribute_res[0].get('text'))
                 if effective_kg_question_analysis['intent']:
-                    #图谱数据分析
+                    # 图谱数据分析
                     kg_data = self.graph_searcher.search_main(effective_kg_question_analysis)
                     reference = dict(
-                        data = kg_data
+                        data=kg_data
                     )
                     data_pool['indicators'].append(indicator)
                     data_pool['function_call'].append(self.async_generate(query,data_chain,reference))
                 elif len(db_call) == 1:
                     reference = dict(
-                        indicator = indicator
+                        indicator=indicator
                     )
                     llm_pool['indicators'].append(indicator)
                     llm_pool['function_call'].append(self.async_generate(query,llm_chain,reference))
             if len(db_call) == 0:
                 reference = dict(
-                        indicator = indicator
+                        indicator=indicator
                     )
                 llm_pool['indicators'].append(indicator)
                 llm_pool['function_call'].append(self.async_generate(query,llm_chain,reference))
@@ -386,31 +386,34 @@ class KGRetrieveTool(BaseModel):
         logging.info(f"开始第二次查询图表数据: {table_question_analysis}")
         self.finance_table_to_redis(table_question_analysis)
         answers = await asyncio.gather(*(data_pool['function_call']+llm_pool['function_call']))
-        for indicator,ans in zip(data_pool['indicators'] + llm_pool['indicators'],answers):
+        for indicator, ans in zip(data_pool['indicators'] + llm_pool['indicators'],answers):
             if indicator not in answer_dict.keys():
                 answer_dict[indicator] = ans+'\n'
             else:
                 answer_dict[indicator] += ans+'\n'
         return answer_dict
 
-    def parse_market_time(self,time_list:list)-> list:
+    def parse_market_time(self, time_list: list) -> list:
         new_time_list = []
         if not time_list:
             now = datetime.now()
-            current_year_month = now.strftime('%Y-%m')  + '-31'
+            current_year_month = now.strftime('%Y-%m') + '-31'
             last_month_first_day = (now.replace(day=1) - timedelta(days=1)).replace(day=1)
             two_months_ago_first_day = (last_month_first_day.replace(day=1) - timedelta(days=1)).replace(day=1).strftime('%Y-%m-%d')
-            new_time_list += [current_year_month,two_months_ago_first_day]
+            new_time_list += [current_year_month, two_months_ago_first_day]
         for time in time_list:
-            try: # 用户给到某年某月某日  精确
+            try:
+                # 用户给到某年某月某日  精确
                 ymd = datetime.strptime(time, "%Y年%m月%d日").strftime("%Y-%m-%d")
                 new_time_list.append(ymd)
             except:
-                try: # 用户给到某年某月 模糊
+                try:
+                    # 用户给到某年某月 模糊
                     ym = datetime.strptime(time, "%Y年%m月").strftime("%Y-%m")
                     new_time_list.append(ym + '-31')
                 except:
-                    try: # 用户给到某年 模糊
+                    try:
+                        # 用户给到某年 模糊
                         y = datetime.strptime(time, "%Y年").strftime("%Y")
                         # 获取当前日期时间
                         now = datetime.now()
@@ -431,8 +434,6 @@ class KGRetrieveTool(BaseModel):
                         new_time_list += [current_year_month,two_months_ago_first_day]
         return new_time_list
 
-
-    
     def get_reference(self, query):
         question_analysis = self.get_question_analysis(query)
         f_question_analysis = self._process_ner_ret(question_analysis)

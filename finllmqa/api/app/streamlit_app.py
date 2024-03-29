@@ -27,19 +27,31 @@ if user_input:
             '请先选择模型！', icon="⚠️")
         st.stop()
 
-    display_num = 0
-    response = {"stop": False}
-    while not response['stop']:
-        res = requests.post(url=SERVER_API_URL,
-                            json={'prompt': user_input}).content
-        response = json.loads(res)
-        answer_list = response['answer']
+    with st.chat_message(name='autogen', avatar='assistant'):
+        message_placeholder = st.empty()
+    json_res = {"stop": False}
+    display_answer_num = 0
+    prev_answer = full_answer = ''
+    while not json_res['stop']:
+        json_res = requests.post(url=STREAM_API_URL,
+                                 json={'prompt': user_input}).json()
+        answer_list = json_res['answer']
+        # 如果第一次请求就得到终止标志，说明存在缓存
+        if display_answer_num == 0 and json_res['stop']:
+            full_answer = '\n\n'.join([f"{ans['name']}: {ans['response']}" for ans in answer_list])
+            message_placeholder.markdown(full_answer)
+            break
         answer_num = len(answer_list)
         if answer_num == 0:
             continue
-        answer = answer_list[-1]
-        if answer_num > display_num:
-            with st.chat_message(name=answer['name'], avatar='assistant'):
-                message_placeholder = st.empty()
-            display_num = answer_num
-        message_placeholder.markdown(answer['response'])
+        current_answer = answer_list[-1]['response']
+        name = answer_list[-1]['name']
+        if answer_num > display_answer_num:
+            prev_answer = full_answer
+            if display_answer_num != 0:
+                prev_answer += '\n\n'
+            display_answer_num = answer_num
+        else:
+            current_answer = f'{name}: {current_answer}'
+            full_answer = prev_answer + current_answer
+        message_placeholder.markdown(full_answer)

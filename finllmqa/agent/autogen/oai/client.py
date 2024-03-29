@@ -162,22 +162,14 @@ class OpenAIClient:
         completions: Completions = self._oai_client.chat.completions if "messages" in params else self._oai_client.completions  # type: ignore [attr-defined]
         global stream_buffer
         agent_name = params.pop("agent_name", "未知")
+        user_input = params.pop("user_input")
         # If streaming is enabled and has messages, then iterate over the chunks of the response.
         if params.get("stream", False) and "messages" in params:
             response_contents = [""] * params.get("n", 1)
             finish_reasons = [""] * params.get("n", 1)
             completion_tokens = 0
-            key = ''
-            for message in params['messages']:
-                if message['role'] == "user" and message['name'] == "智能体":
-                    key = message['content']
-                    break
-            answer = stream_buffer[key]['answer']
-            stream_buffer[key] = {
-                'answer': answer,
-                'stop': False,
-                'time': datetime.now()
-            }
+            key = user_input
+            stream_buffer[key]['time'] = datetime.now()
 
             # Set the terminal text color to green
             print("\033[32m", end="")
@@ -188,10 +180,11 @@ class OpenAIClient:
 
             one_answer = ''
             # save one answer in global variable
-            stream_buffer[key]['answer'].append(
-                {
-                    'name': agent_name,
-                    'response': one_answer})
+            if agent_name != 'chat_manager':
+                stream_buffer[key]['answer'].append(
+                    {
+                        'name': agent_name,
+                        'response': one_answer})
             # Send the chat completion request to OpenAI's API and process the response in chunks
             for chunk in completions.create(**params):
                 if chunk.choices:
@@ -238,14 +231,15 @@ class OpenAIClient:
 
                         # If content is present, print it to the terminal and update response variables
                         if content is not None:
-                            stream_buffer[key]['time'] = datetime.now()
-                            one_answer += content
-                            stream_buffer[key]['answer'][-1]['response'] = one_answer
+                            if agent_name != 'chat_manager':
+                                stream_buffer[key]['time'] = datetime.now()
+                                one_answer += content
+                                stream_buffer[key]['answer'][-1]['response'] = one_answer
                             print(content, end="", flush=True)
                             response_contents[choice.index] += content
                             completion_tokens += 1
                         else:
-                            # print()
+                            print('No valid content!')
                             pass
 
             # Reset the terminal text color

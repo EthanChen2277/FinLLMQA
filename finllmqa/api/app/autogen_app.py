@@ -34,31 +34,41 @@ def autogen_stream(prompt):
                   "stream": True, "timeout": 600,
                   "max_tokens": 8192}
 
-    user_proxy = autogen.UserProxyAgent(
-        name="智能体",
-        system_message="智能管理员",
-        human_input_mode="NEVER",
-        code_execution_config={
-            'use_docker': False
-        }
+    admin = autogen.UserProxyAgent(
+        name="组长",
+        description='组长负责整个项目的规划和管理，确保项目按时按质完成。组长还需要与其他团队成员沟通，确保信息畅通，'
+                    '并协调解决团队内部的问题。问题回答完毕后回复"TERMINATE"',
+        system_message='组长负责整个项目的规划和管理，确保项目按时按质完成。组长还需要与其他团队成员沟通，确保信息畅通，'
+                       '并协调解决团队内部的问题。问题回答完毕后回复"TERMINATE"',
+        is_termination_msg=lambda x: x.get("content", "") and "TERMINATE" in x.get("content", "").rstrip(),
+        code_execution_config=False,
+        human_input_mode='NEVER',
+        llm_config=llm_config
     )
     analyst = autogen.AssistantAgent(
         name="金融分析师",
-        description='金融方面的专家，善于分析金融问题。问题回答完毕后回复"TERMINATE"',
+        description='金融分析师负责对金融市场进行深入研究和分析，包括宏观经济、行业趋势、公司基本面等。',
+        system_message='金融分析师负责对金融市场进行深入研究和分析，包括宏观经济、行业趋势、公司基本面等。',
         llm_config=llm_config
     )
-    critic = autogen.AssistantAgent(
-        name="评论家",
-        system_message="富有批判性，对小组内其他成员的回答进行评论并给出建议",
-        llm_config=llm_config,
+    risk_manager = autogen.AssistantAgent(
+        name="风险管理师",
+        description='风险管理师的任务是评估和控制投资过程中的风险，确保投资组合的风险水平符合既定的风险承受能力。',
+        system_message='风险管理师的任务是评估和控制投资过程中的风险，确保投资组合的风险水平符合既定的风险承受能力。',
+        llm_config=llm_config
+    )
+    financial_analyst = autogen.AssistantAgent(
+        name="财务分析师",
+        description='财务分析师专注于公司的财务报表分析，评估公司的财务状况和未来的盈利能力',
+        system_message='财务分析师专注于公司的财务报表分析，评估公司的财务状况和未来的盈利能力',
+        llm_config=llm_config
     )
 
     groupchat = autogen.GroupChat(
-        agents=[user_proxy, analyst, critic], messages=[], max_round=5)
+        agents=[admin, analyst, risk_manager, financial_analyst], messages=[])
     manager = autogen.GroupChatManager(
         groupchat=groupchat, llm_config=llm_config)
-    print('start chat')
-    user_proxy.initiate_chat(
+    admin.initiate_chat(
         manager, message=prompt)
     stream_buffer[prompt]["stop"] = True
 
@@ -68,7 +78,7 @@ def remove_timeout_buffer():
         diff = datetime.datetime.now() - stream_buffer[key]["time"]
         seconds = diff.total_seconds()
         # print(key + ": 已存在" + str(seconds) + "秒")
-        if seconds > 1200:
+        if seconds > 10:
             if stream_buffer[key]["stop"]:
                 del stream_buffer[key]
                 print(key + "：已被从缓存中移除")
@@ -83,8 +93,6 @@ async def create_item(model: GetStream):
     remove_timeout_buffer()
     # 获取入参
     prompt = model.prompt
-    print(type(prompt))
-    stop = False
     # 判断是否已在生成，只有首次才调stream_chat
     now = datetime.datetime.now()
     if prompt == '你好':
@@ -101,7 +109,7 @@ async def create_item(model: GetStream):
         }
     if stream_buffer.get(prompt) is None:
         stream_buffer[prompt] = {"answer": [],
-                                 "stop": stop, "time": now}
+                                 "stop": False, "time": now}
         # 在线程中调用stream_chat
         sub_thread = threading.Thread(
             target=autogen_stream, args=[prompt])
@@ -110,12 +118,11 @@ async def create_item(model: GetStream):
     time = now.strftime("%Y-%m-%d %H:%M:%S")
     answer_list = stream_buffer[prompt]["answer"]
     # 如果stream_chat调用完成，给返回加一个停止词[stop]
-    if stream_buffer[prompt]["stop"]:
-        stop = True
+    print(stream_buffer)
     response = {
         "answer": answer_list,
         "status": 200,
-        "stop": stop,
+        "stop": stream_buffer[prompt]["stop"],
         "time": time
     }
 

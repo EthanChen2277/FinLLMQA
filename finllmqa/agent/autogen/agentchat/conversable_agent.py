@@ -129,6 +129,7 @@ class ConversableAgent(LLMAgent):
             code_execution_config.copy() if hasattr(code_execution_config, "copy") else code_execution_config
         )
 
+        self.user_input = ''
         self._name = name
         # a dictionary of conversations, default value is list
         self._oai_messages = defaultdict(list)
@@ -626,6 +627,7 @@ class ConversableAgent(LLMAgent):
         # unless it's "function".
         valid = self._append_oai_message(message, "assistant", recipient)
         if valid:
+            recipient.user_input = self.user_input
             recipient.receive(message, self, request_reply, silent)
         else:
             raise ValueError(
@@ -977,6 +979,7 @@ class ConversableAgent(LLMAgent):
                     msg2send = self.generate_reply(messages=self.chat_messages[recipient], sender=recipient)
                 if msg2send is None:
                     break
+                self.user_input = msg2send
                 self.send(msg2send, recipient, request_reply=True, silent=silent)
         else:
             self._prepare_chat(recipient, clear_history)
@@ -984,6 +987,7 @@ class ConversableAgent(LLMAgent):
                 msg2send = message(_chat_info["sender"], _chat_info["recipient"], context)
             else:
                 msg2send = self.generate_init_message(message, **context)
+            self.user_input = msg2send
             self.send(msg2send, recipient, silent=silent)
         summary = self._summarize_chat(
             summary_method,
@@ -1295,7 +1299,8 @@ class ConversableAgent(LLMAgent):
             context=messages[-1].pop("context", None),
             messages=all_messages,
             cache=cache,
-            agent_name=self.name
+            agent_name=self.name,
+            user_input=self.user_input
         )
         extracted_response = llm_client.extract_text_or_completion_object(response)[0]
 
