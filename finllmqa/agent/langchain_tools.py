@@ -6,9 +6,7 @@ import re
 import threading
 from abc import ABC, abstractmethod
 import logging
-from urllib.parse import urljoin
 import pymysql
-import requests
 from datetime import datetime, timedelta
 import pandas as pd
 import asyncio
@@ -17,7 +15,6 @@ from langchain.tools import BaseTool
 from langchain.base_language import BaseLanguageModel
 from langchain import PromptTemplate, LLMChain
 from langchain_community.llms.chatglm3 import ChatGLM3
-
 
 from finllmqa.kg.search import AnswerSearcher
 from finllmqa.api.embedding import get_embedding
@@ -65,18 +62,17 @@ class BaseModel(ABC):
 
     def run(self, query):
         self.get_reference(query)
-        # 将回答的问题开启流式输出
-        self.llm.streaming = True
         self.get_llm_chain()
-        if self.verbose:
-            logging.info(f"Tool's name is {self.name}. Its reference is {self.reference}.")
         self.progress(progress_text='调用LLM')
         resp = self.llm_chain.predict(
             query=query,
             **self.reference
         )
+        if self.verbose:
+            logging.info(f"Tool's name is {self.name}. Its reference is {self.reference}\n "
+                         f"Q: {query} LLM Answer: {resp}.")
         return resp
-    
+
     # 异步调用组件
     async def async_generate(self, query):
         self.get_reference(query)
@@ -118,10 +114,10 @@ class IntentAgent(BaseModel):
         意图类别：算术
 
         问题：现在拿100万进行投资，分众传媒和太平洋哪个更值得投资？
-        意图类别：金融
+        意图类别：金融投资
 
         问题：分众传媒这家公司怎么样？
-        意图类别：金融
+        意图类别：金融投资
 
         问题：“{query}”获取相关数据
         意图类别："""
@@ -140,29 +136,6 @@ class IntentAgent(BaseModel):
         if resp in tool_names:
             return self.tools[tool_names.index(resp)]
         return self.tools[-1]
-
-
-class DateTimeTool(BaseModel):
-    def __init__(self, llm: BaseLanguageModel, verbose: bool = True, *args, **kwargs):
-        super().__init__(llm, verbose, *args, **kwargs)
-        self.name = "查询时间"
-        self.description = '''
-        当需要查询当前时间时使用
-        '''
-        self._template = """
-        今天是{day}星期{weekday}，现在时间为{time}。
-
-        问题：{query}
-        答案："""
-
-        self.weekday_list = ["一", "二", "三", "四", "五", "六", "日"]
-
-    def get_reference(self, query):
-        self.reference = dict(
-            day=datetime.now().strftime("%Y-%m-%d"),
-            weekday=self.weekday_list[datetime.now().weekday()],
-            time=datetime.now().strftime("%H:%M:%S")
-        )
 
 
 class IETool(BaseModel):
@@ -186,11 +159,11 @@ class IETool(BaseModel):
 
         举例3：
             问题：激光行业近三年的发展如何？
-            信息抽取：'公司': [], '行业': ['激光行业'], '时间': ['近三年'], '意图': ['发展']
+            信息抽取：'公司': [], '行业': ['激光行业'], '时间': ['最近三年'], '意图': ['发展']
 
         举例4：
-            问题：证券行业近三年的发展如何？
-            信息抽取：'公司': [], '行业': ['证券行业'], '时间': ['近三年'], '意图': ['发展']
+            问题：证券行业最近的发展如何？
+            信息抽取：'公司': [], '行业': ['证券行业'], '时间': ['最近一年'], '意图': ['发展']
 
         举例5：
             问题：分众传媒与新潮传媒谁的利润率更高？
@@ -221,20 +194,17 @@ class TimeResolveTool(BaseModel):
         问题：今天是2023年02月02日，解析该时间“最近三年”。
         时间解析：['2023年', '2022年', '2021年']
 
-        问题：今天是2023年09月02日，解析该时间“二零二二年五月”。
+        问题：今天是2024年03月02日，解析该时间“二零二二年五月”。
         时间解析：['2022年05月']
 
-        问题：今天是2023年08月05日，解析该时间“近三个月”。
+        问题：今天是2023年08月05日，解析该时间“最近三个月”。
         时间解析：['2023年08月', '2023年07月', '2023年06月']
 
-        问题：今天是2023年09月02日，解析该时间“二〇二三年8月七号”。
+        问题：今天是2024年01月02日，解析该时间“二〇二三年8月七号”。
         时间解析：['2023年08月07日']
 
-        问题：今天是2023年09月02日，解析该时间“2020-7-23”。
+        问题：今天是2024年09月02日，解析该时间“2020-7-23”。
         时间解析：['2020年07月23日']
-
-        问题：今天是2023年11月28日，解析该时间“目前”。
-        时间解析：['2023年9月','2023年10月','2023年11月']
 
         问题：今天是{date}，解析该时间“{query}”。
         时间解析："""
@@ -248,15 +218,15 @@ class TimeResolveTool(BaseModel):
 # class AnalysisQuery(BaseModel):
 
 class KGRetrieveTool(BaseModel):
-    def __init__(self, llm: BaseLanguageModel, reference_llm: BaseLanguageModel, verbose: bool = True, *args, **kwargs):
+    def __init__(self, llm: BaseLanguageModel,  verbose: bool = True, *args, **kwargs):
         super().__init__(llm, verbose, *args, **kwargs)
-        self.name = "金融"
+        self.name = "金融投资"
         self.description = '''
         当需要查询从知识图谱中查询金融方面的实体时使用
         '''
         self._template = """
         基于以下已知内容来回答最后的问题。
-        如果无法从中得到答案，请尽可能地分析已知内容。
+        如果无法直接从中得到答案，请全面地分析已知内容。
 
         已知内容：
         {content}
@@ -271,7 +241,7 @@ class KGRetrieveTool(BaseModel):
         # Milvus(self.embeddings)
         self.stock_matched_threshold = 0.8
         self.intent_matched_threshold = 0.7
-        self.refevrence_llm = reference_llm
+        self.refevrence_llm = llm
         self.vec_search_params = {"metric_type": "L2", "params": {"nprobe": 1024}}
 
     def renew_prompt(self, prompt):
@@ -288,13 +258,13 @@ class KGRetrieveTool(BaseModel):
         except:
             try:
                 resp = await chain.apredict(
-                query=query,
-                **reference
-            )
+                    query=query,
+                    **reference
+                )
             except:
                 resp = ''
         return resp
-    
+
     async def genereate_multi_reply_concurrently(self, query, question_analysis):
         # 以知识图谱为数据底层，以大模型为知识补充
         # 分别存储以知识图谱和语言模型作为知识支撑的答案生成调用
@@ -315,37 +285,39 @@ class KGRetrieveTool(BaseModel):
 
         问题：{query}
         问题分析："""
-        data_chain = LLMChain(llm = self.reference_llm,prompt = PromptTemplate.from_template(data_prompt),verbose = self.verbose)
-        llm_chain = LLMChain(llm = self.reference_llm,prompt = PromptTemplate.from_template(llm_prompt),verbose = self.verbose)
+        data_chain = LLMChain(llm=self.llm, prompt=PromptTemplate.from_template(data_prompt),
+                              verbose=self.verbose)
+        llm_chain = LLMChain(llm=self.llm, prompt=PromptTemplate.from_template(llm_prompt),
+                             verbose=self.verbose)
         answer_dict = {}
-        is_market_data_analysted = False
         table_question_analysis = deepcopy(question_analysis)
-        data_schema_dict = GetAttributeTool(self.reference_llm, *self.args, **self.kwargs).run(query) 
-        logging.info("回答问题的方案和数据库框架:{}".format('\n'.join([f'{key} : {value}' for key, value in data_schema_dict.items()])))
+        data_schema_dict = GetAttributeTool(self.llm, *self.args, **self.kwargs).run(query)
+        logging.info("回答问题的方案和数据库框架:{}".format(
+            '\n'.join([f'{key} : {value}' for key, value in data_schema_dict.items()])))
         if not data_schema_dict:
             return ''
         for indicator, two_task_answers in data_schema_dict.items():
             attrs = two_task_answers['task_one_answer']
             db_call = two_task_answers['task_two_answer']
             if 'price_db' in db_call:
-                #行情数据分析
+                # 行情数据分析
                 stock_map = question_analysis['stock_map']
-                time_list = self.parse_market_time(question_analysis['发布时间'])
+                time_list = self.parse_market_time(question_analysis['时间'])
                 mk_data = ''
                 start_date = min(time_list)
                 end_date = max(time_list)
                 mk_query = f"从{'、'.join(attrs)}的角度出发，回答{query}"
                 for name, code in stock_map.items():
-                    mk_data += self.get_mk_data(name,code,start_date,end_date)
+                    mk_data += self.get_mk_data(name, code, start_date, end_date)
                 reference = dict(
                     data=mk_data
                 )
                 data_pool['indicators'].append(indicator)
-                data_pool['function_call'].append(self.async_generate(mk_query,data_chain,reference))
+                data_pool['function_call'].append(self.async_generate(mk_query, data_chain, reference))
             if 'indicator_db' in db_call:
-                #技术指标分析
+                # 技术指标分析
                 stock_map = question_analysis['stock_map']
-                time_list = self.parse_market_time(question_analysis['发布时间'])
+                time_list = self.parse_market_time(question_analysis['时间'])
                 mk_data = ''
                 start_date = min(time_list)
                 end_date = max(time_list)
@@ -357,7 +329,7 @@ class KGRetrieveTool(BaseModel):
                 )
                 data_pool['indicators'].append(indicator)
                 data_pool['function_call'].append(self.async_generate(mk_query, data_chain, reference))
-            
+
             if 'finance_db' in db_call:
                 effective_kg_question_analysis = deepcopy(question_analysis)
                 for attr in attrs:
@@ -372,28 +344,28 @@ class KGRetrieveTool(BaseModel):
                         data=kg_data
                     )
                     data_pool['indicators'].append(indicator)
-                    data_pool['function_call'].append(self.async_generate(query,data_chain,reference))
+                    data_pool['function_call'].append(self.async_generate(query, data_chain, reference))
                 elif len(db_call) == 1:
                     reference = dict(
                         indicator=indicator
                     )
                     llm_pool['indicators'].append(indicator)
-                    llm_pool['function_call'].append(self.async_generate(query,llm_chain,reference))
+                    llm_pool['function_call'].append(self.async_generate(query, llm_chain, reference))
             if len(db_call) == 0:
                 reference = dict(
-                        indicator=indicator
-                    )
+                    indicator=indicator
+                )
                 llm_pool['indicators'].append(indicator)
-                llm_pool['function_call'].append(self.async_generate(query,llm_chain,reference))
+                llm_pool['function_call'].append(self.async_generate(query, llm_chain, reference))
 
         logging.info(f"开始第二次查询图表数据: {table_question_analysis}")
         self.finance_table_to_redis(table_question_analysis)
-        answers = await asyncio.gather(*(data_pool['function_call']+llm_pool['function_call']))
-        for indicator, ans in zip(data_pool['indicators'] + llm_pool['indicators'],answers):
+        answers = await asyncio.gather(*(data_pool['function_call'] + llm_pool['function_call']))
+        for indicator, ans in zip(data_pool['indicators'] + llm_pool['indicators'], answers):
             if indicator not in answer_dict.keys():
-                answer_dict[indicator] = ans+'\n'
+                answer_dict[indicator] = ans + '\n'
             else:
-                answer_dict[indicator] += ans+'\n'
+                answer_dict[indicator] += ans + '\n'
         return answer_dict
 
     def parse_market_time(self, time_list: list) -> list:
@@ -402,7 +374,8 @@ class KGRetrieveTool(BaseModel):
             now = datetime.now()
             current_year_month = now.strftime('%Y-%m') + '-31'
             last_month_first_day = (now.replace(day=1) - timedelta(days=1)).replace(day=1)
-            two_months_ago_first_day = (last_month_first_day.replace(day=1) - timedelta(days=1)).replace(day=1).strftime('%Y-%m-%d')
+            two_months_ago_first_day = (last_month_first_day.replace(day=1) - timedelta(days=1)).replace(
+                day=1).strftime('%Y-%m-%d')
             new_time_list += [current_year_month, two_months_ago_first_day]
         for time in time_list:
             try:
@@ -425,16 +398,19 @@ class KGRetrieveTool(BaseModel):
                         if y == current_year:
                             current_year_month = now.strftime('%Y-%m') + '-31'
                             last_month_first_day = (now.replace(day=1) - timedelta(days=1)).replace(day=1)
-                            two_months_ago_first_day = (last_month_first_day.replace(day=1) - timedelta(days=1)).replace(day=1).strftime('%Y-%m-%d')
-                            new_time_list += [current_year_month,two_months_ago_first_day]
+                            two_months_ago_first_day = (
+                                        last_month_first_day.replace(day=1) - timedelta(days=1)).replace(
+                                day=1).strftime('%Y-%m-%d')
+                            new_time_list += [current_year_month, two_months_ago_first_day]
                         else:
-                            new_time_list += [f'{y}-12-31',f'{y}-10-01']
+                            new_time_list += [f'{y}-12-31', f'{y}-10-01']
                     except:
                         now = datetime.now()
                         current_year_month = now.strftime('%Y-%m') + '-31'
                         last_month_first_day = (now.replace(day=1) - timedelta(days=1)).replace(day=1)
-                        two_months_ago_first_day = (last_month_first_day.replace(day=1) - timedelta(days=1)).replace(day=1).strftime('%Y-%m-%d')
-                        new_time_list += [current_year_month,two_months_ago_first_day]
+                        two_months_ago_first_day = (last_month_first_day.replace(day=1) - timedelta(days=1)).replace(
+                            day=1).strftime('%Y-%m-%d')
+                        new_time_list += [current_year_month, two_months_ago_first_day]
         return new_time_list
 
     def get_reference(self, query):
@@ -446,12 +422,10 @@ class KGRetrieveTool(BaseModel):
             query_res = self.graph_searcher.search_main(question_dict)
             # 图表数据写入redis
             # 另起线程去执行
-            logging.info("开始查询图表数据")
-            sub_thread = threading.Thread(target=self.finance_table_to_redis,
-                                          args=(question_dict,))
-            sub_thread.start()
-
-            # self.finance_table_to_redis(f_question_analysis)
+            # logging.info("开始查询图表数据")
+            # sub_thread = threading.Thread(target=self.finance_table_to_redis,
+            #                               args=(question_dict,))
+            # sub_thread.start()
 
         # self.reference = dict(
         #     content=lore
@@ -461,16 +435,14 @@ class KGRetrieveTool(BaseModel):
 
     def run(self, query):
         question_dict, query_res = self.get_reference(query)
-        # 将回答的问题开启流式输出
-        self.llm.streaming = True
         self.get_llm_chain()
         # 如果没有识别到有效的主体
         base_prompt = """
         问题：{query}
         答案："""
         if not question_dict:
-            self.renew_prompt(base_prompt)    
-        # 如果问题第一次解析后没有获得有效的图谱意图，则进入第二次解析，增加方案生成和属性获取的组件调用
+            self.renew_prompt(base_prompt)
+            # 如果问题第一次解析后没有获得有效的图谱意图，则进入第二次解析，增加方案生成和属性获取的组件调用
         elif not query_res:
             question_analysis = deepcopy(question_dict)
             answer_dict = asyncio.run(self.genereate_multi_reply_concurrently(query, question_analysis))
@@ -496,7 +468,7 @@ class KGRetrieveTool(BaseModel):
         else:
             self.reference = dict(
                 content=query_res
-                )
+            )
         if self.verbose:
             logging.info(f"Tool's name is {self.name}. Its reference is {self.reference}.")
         self.progress(progress_text='调用LLM')
@@ -505,14 +477,6 @@ class KGRetrieveTool(BaseModel):
             **self.reference
         )
         return resp
-
-    def finance_table_to_redis(self, f_question_analysis, ):
-        tabel_data = self.graph_searcher.search_main(f_question_analysis, type='table')
-        logging.info("查询图表数据完成，开始写入redis。")
-        json_data = json.dumps(
-            {"question_id": self.kwargs.get('progress_key'), "content": tabel_data, 'type_': 'table'})
-        redis.rpush(self.kwargs.get('progress_key'), json_data)
-        logging.info("开始写入redis完")
 
     def vector_search(self, text, collection_name, output_fields):
         embeddings = self.embeddings_func(text=text)
@@ -532,8 +496,8 @@ class KGRetrieveTool(BaseModel):
         return ret
 
     def get_question_analysis(self, query):
-        ie = IETool(self.reference_llm)
-        tr = TimeResolveTool(self.reference_llm)
+        ie = IETool(self.llm)
+        tr = TimeResolveTool(self.llm)
         ie_res = ast.literal_eval("{*}".replace('*', ie.run(query)))
         question_dict = {
             '主体': {
@@ -646,7 +610,7 @@ class KGRetrieveTool(BaseModel):
             matched_subject_list.append(most_similar_subject)
         return matched_subject_list
 
-    def get_mk_data(self,name,symbol,start_date,end_date):
+    def get_mk_data(self, name, symbol, start_date, end_date):
         # 创建数据库连接
         conn = pymysql.connect(host='192.168.1.101', port=13306, user='root', password='km101', database='market_data')
         cursor = conn.cursor()
@@ -654,34 +618,35 @@ class KGRetrieveTool(BaseModel):
         # 执行sql语句
         sql = 'SELECT trade_date,low,high,close,volume FROM  a_market_data_day_K WHERE symbol = %s and ' \
               'trade_date >= %s and trade_date <= %s ORDER BY trade_date DESC'
-        cursor.execute(sql, [int(symbol),start_date, end_date])
+        cursor.execute(sql, [int(symbol), start_date, end_date])
         rows = cursor.fetchall()
         conn.close()
 
         # 将查询结果存入字典
-        keys = ['交易日', '最低价','最高价','收盘价','成交量']
-        df = pd.DataFrame(list(rows), columns=keys).set_index('交易日',drop = True)
-        df[['最低价', '最高价', '收盘价']] = df[['最低价','最高价','收盘价']].astype(float).round(2)
-        df['成交量'] = df['成交量'].astype(float).apply(lambda x:"{:.0f}".format(x))
-        df['涨跌幅'] = (df['收盘价']/df['收盘价'].shift(-1) - 1).apply(lambda x:"{:.2%}".format(x))
+        keys = ['交易日', '最低价', '最高价', '收盘价', '成交量']
+        df = pd.DataFrame(list(rows), columns=keys).set_index('交易日', drop=True)
+        df[['最低价', '最高价', '收盘价']] = df[['最低价', '最高价', '收盘价']].astype(float).round(2)
+        df['成交量'] = df['成交量'].astype(float).apply(lambda x: "{:.0f}".format(x))
+        df['涨跌幅'] = (df['收盘价'] / df['收盘价'].shift(-1) - 1).apply(lambda x: "{:.2%}".format(x))
         return f'{name}从{start_date}到{end_date}的行情信息如下: \n {df.to_markdown()}'
-    
-    def get_mk_indicator(self,name,symbol,start_date,end_date):
+
+    def get_mk_indicator(self, name, symbol, start_date, end_date):
         # 创建数据库连接
         conn = pymysql.connect(host='192.168.1.101', port=13306, user='root', password='km101', database='market_data')
         cursor = conn.cursor()
 
         # 执行sql语句
         sql = 'SELECT trade_date, MA5, BBANDS_upperband,BBANDS_lowerband, RSI, MACD FROM  talib_indicator_data WHERE symbol = %s and trade_date >= %s and trade_date <= %s ORDER BY trade_date DESC LIMIT 50'
-        cursor.execute(sql, [int(symbol),start_date, end_date])
+        cursor.execute(sql, [int(symbol), start_date, end_date])
         rows = cursor.fetchall()
         # 结束数据库连接
         conn.close()
 
-        #将查询结果存入字典
-        keys = ['交易日', '5日均线(布林带中轨)', '布林带上轨','布林带下轨', 'RSI', 'MACD']
-        df = pd.DataFrame(list(rows), columns=keys).set_index('交易日',drop = True)
-        df[['5日均线(布林带中轨)', '布林带上轨','布林带下轨', 'RSI', 'MACD']] = df[['5日均线(布林带中轨)', '布林带上轨','布林带下轨', 'RSI', 'MACD']].astype(float)
+        # 将查询结果存入字典
+        keys = ['交易日', '5日均线(布林带中轨)', '布林带上轨', '布林带下轨', 'RSI', 'MACD']
+        df = pd.DataFrame(list(rows), columns=keys).set_index('交易日', drop=True)
+        df[['5日均线(布林带中轨)', '布林带上轨', '布林带下轨', 'RSI', 'MACD']] = df[
+            ['5日均线(布林带中轨)', '布林带上轨', '布林带下轨', 'RSI', 'MACD']].astype(float)
         df = df.applymap(lambda x: "{:.2f}".format(x) if isinstance(x, (int, float)) else x)
         return f'{name}从{start_date}到{end_date}的技术指标如下: \n {df.to_markdown()}'
 
@@ -754,7 +719,7 @@ class GetAttributeTool(BaseModel):
         任务一答案: ？
         任务二答案: ？"""
 
-    def extract_answers(self,input_string):
+    def extract_answers(self, input_string):
         # 使用正则表达式提取任务一和任务二的答案
         pattern_task_one = r"任务一答案: (\[.*?\])"
         pattern_task_two = r"任务二答案: (\[.*?\])"
@@ -771,7 +736,7 @@ class GetAttributeTool(BaseModel):
 
     def run(self, query):
         self.get_llm_chain()
-        scheme_tool = CreateSchemeTool(self.llm, )
+        scheme_tool = CreateSchemeTool(self.llm)
         try:
             scheme = scheme_tool.run(query)
             indicators = ast.literal_eval(scheme)
@@ -794,8 +759,8 @@ class GetAttributeTool(BaseModel):
             try:
                 task_one_ans, task_two_ans = self.extract_answers(resp)
                 response[indicator] = dict(
-                    task_one_answer = task_one_ans,
-                    task_two_answer = task_two_ans
+                    task_one_answer=task_one_ans,
+                    task_two_answer=task_two_ans
                 )
             except Exception as e:
                 logging.info(e)
@@ -814,21 +779,13 @@ def handle_answer(text: str):
     return text
 
 
-def progress_to_redis(question_id, text):
-    """
-    k :  用于代表改问题的唯一值
-    """
-    json_data = json.dumps({"question_id": question_id, "content": text, 'type_': 'progress'})
-    redis.rpush(question_id, json_data)
-
-
 if __name__ == "__main__":
     llm = ChatGLM3(
-        endpoint_url=SERVER_API_URL+SERVER_LLM_API_PORT+CHAT_API_URL,
+        endpoint_url=SERVER_API_URL + SERVER_LLM_API_PORT + CHAT_API_URL,
         max_tokens=8096,
         top_p=0.9
     )
-    tools = [DateTimeTool(llm), KGRetrieveTool(llm), BaseModel(llm)]
+    tools = [KGRetrieveTool(llm), BaseModel(llm)]
     agent = IntentAgent(llm=llm, tools=tools)
     query = "李白写过哪些诗"
     tool = agent.choose_tools(query)

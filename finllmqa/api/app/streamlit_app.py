@@ -1,8 +1,16 @@
 import streamlit as st
 import requests
-import json
 
 from finllmqa.api.core import STREAM_API_URL
+from finllmqa.agent.langchain_tools import *
+
+llm = ChatGLM3(
+    endpoint_url=SERVER_API_URL + SERVER_LLM_API_PORT + CHAT_API_URL,
+    max_tokens=8096,
+    top_p=0.9
+)
+tools = [KGRetrieveTool(llm), BaseModel(llm)]
+agent = IntentAgent(llm=llm, tools=tools)
 
 st.set_page_config(
     page_title="AutoGen Chat Agents",
@@ -10,9 +18,6 @@ st.set_page_config(
     layout="wide"
 )
 
-
-selected_model = None
-selected_key = None
 with st.sidebar:
     st.header("OpenAI Configuration")
     selected_model = st.selectbox("Model", ['chatglm3-6B'], index=0)
@@ -26,6 +31,9 @@ if user_input:
         st.warning(
             '请先选择模型！', icon="⚠️")
         st.stop()
+
+    tool = agent.choose_tools(query=user_input)
+
 
     with st.chat_message(name='autogen', avatar='assistant'):
         message_placeholder = st.empty()
