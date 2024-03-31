@@ -10,12 +10,12 @@ from datetime import datetime, timedelta
 import random
 
 from finllmqa.kg.search.question_parser import QuestionParser
+from finllmqa.api.core import NEO4J_API_URL, STOCK_KG_USER, STOCK_KG_PW
 
 
 class AnswerSearcher:
     def __init__(self, encoding_name: str = 'cl100k_base', max_length=2000, timeout=15):
-        self.g = Graph("http://192.168.197.1:7474",
-                       auth=("neo4j", "finglm-base-on-kg"), name='neo4j')
+        self.g = Graph(NEO4J_API_URL, auth=(STOCK_KG_USER, STOCK_KG_PW), name='neo4j')
 
         stock_data = self.g.run(f"match (n:`股票`) return n.name, n.代码").data()
         stock_pool, code_pool = list(
@@ -61,7 +61,8 @@ class AnswerSearcher:
 
         stock_1_grade_nodes = [x['reachableLabels'] for x in self.g.run(
             "MATCH (n:`股票`)-[*1]->(m) RETURN DISTINCT labels(m) AS reachableLabels").data()]
-        # stock_2_grade_nodes = [x['reachableLabels'] for x in self.g.run("MATCH (n:`股票`)-[*2]->(m) RETURN DISTINCT labels(m) AS reachableLabels").data()]
+        # stock_2_grade_nodes = [x['reachableLabels'] for x in self.g.run("MATCH (n:`股票`)-[*2]->(m)
+        # RETURN DISTINCT labels(m) AS reachableLabels").data()]
 
         # attr_data = self.g.run('CALL db.propertyKeys()').data()
         # attr_pool = [item['propertyKey'] for item in attr_data]
@@ -72,8 +73,9 @@ class AnswerSearcher:
         #     time = self.g.run(f"match (n:`{tp}`) where n.name='{subject}' return n.发布时间 as time").data()
         #     times[subject] =
 
-        self.knowledge = {'股票': stock_pool, '股票代码': code_pool, '财务指标_发布时间': fin_time_pool, '近一年': latest_time, '实体': ent_pool,
-                          "单节点属性": ent2attr, '关系': rel_pool, '关系三元组': self.rel_triple, '关系三元组辅助': self.rel_triple_hlt, '属性': attr_pool, '股票一级子节点': stock_1_grade_nodes}
+        self.knowledge = {'股票': stock_pool, '股票代码': code_pool, '财务指标_发布时间': fin_time_pool, '近一年': latest_time,
+                          '实体': ent_pool, "单节点属性": ent2attr, '关系': rel_pool, '关系三元组': self.rel_triple,
+                          '关系三元组辅助': self.rel_triple_hlt, '属性': attr_pool, '股票一级子节点': stock_1_grade_nodes}
 
         self.first_step_labels = [x['labels'] for x in self.g.run(
             "match (n:`股票`)-[*0..1]-(m) where n.name = '光洋股份' return distinct labels(m) as labels").data()]
@@ -90,110 +92,16 @@ class AnswerSearcher:
     def check_length(self, output):
         return True if len(self.encoding.encode(output)) > self.max_length else False
 
-    # bleu 和 编辑距离 用于计算相似度
-    def bleu(self, ner, ent):
-        """计算抽取实体与现有实体的匹配度 ner候选词,ent查询词"""
-        len_pred, len_label = len(ner), len(ent)
-        k = min(len_pred, len_label)
-        if k == 0:
-            return 0
-        score = math.exp(min(0, 1 - len_label / len_pred))
-        # score = 0
-        flag = False
-        for n in range(1, k + 1):
-            num_matches, label_subs = 0, collections.defaultdict(int)
-            for i in range(len_label - n + 1):
-                label_subs[" ".join(ent[i: i + n])] += 1
-            for i in range(len_pred - n + 1):
-                if label_subs[" ".join(ner[i: i + n])] > 0:
-                    num_matches += 1
-                    flag = True
-                    label_subs[" ".join(ner[i: i + n])] -= 1  # 不重复
-            if not flag and num_matches == 0:  # 一次都没匹配成功
-                score = 0
-                break
-            elif num_matches == 0:  # 进行到最大匹配后不再计算
-                break
-            score *= math.pow(num_matches / (len_pred -
-                              n + 1), math.pow(0.5, n))
-        return score if score > 0 else 0
-
-    def editing_distance(self, word1, word2):
-        try:
-            m, n = len(word1), len(word2)
-        except:
-            return float('inf')
-
-        if m == 0 or n == 0:
-            return abs(m-n)
-        dp = [[float('inf') for _ in range(n+1)] for _ in range(m+1)]
-
-        for i in range(m):
-            dp[i][0] = i
-
-        for i in range(n):
-            dp[0][i] = i
-
-        for i in range(1, m+1):
-            for j in range(1, n+1):
-
-                if word1[i-1] == word2[j-1]:
-                    dp[i][j] = dp[i-1][j-1]
-                else:
-                    # 替换
-                    dp[i][j] = dp[i-1][j-1] + 1
-                    # 删除
-                    dp[i][j] = min(dp[i][j], min(dp[i-1][j], dp[i][j-1]) + 1)
-        return dp[-1][-1]
-
-    def equal(self, subject_1: str, subject_2: str, subject_type) -> bool:
-
-        if subject_2 in subject_1:
-            return True
-        return False
-
     def search_main(self, ent_dict, type='llm'):
 
-        if len(ent_dict['主体']['股票']) > 1 or len(ent_dict['发布时间']) > 1 or len(ent_dict['intent']) > 2 or '基本面' in ent_dict['intent']:
+        if len(ent_dict['主体']['股票']) > 1 or len(ent_dict['发布时间']) > 1 or len(ent_dict['意图']) > 2 or '基本面' in ent_dict['意图']:
             self.is_trunc = True
         else:
             self.is_trunc = False
 
-        def match_helper(match_subject, subject_type):
-            '''更新basic_ent[subject]'''
-            scores_best = float('inf')
-            flag = True  # 标志是否创建新的一个
-            for kg_subject in self.knowledge[subject_type]:
-                if self.equal(match_subject, kg_subject, subject_type):
-                    if flag:
-                        basic_ent[subject_type].append(kg_subject)
-                    else:
-                        basic_ent[subject_type][-1] = kg_subject
-                    break
-                scores_cur = self.editing_distance(kg_subject, match_subject)
-                if scores_cur < scores_best:
-                    if flag:
-                        basic_ent[subject_type].append(kg_subject)
-                        flag = False
-                    else:
-                        basic_ent[subject_type][-1] = kg_subject
-                    scores_best = scores_cur
-
-        basic_ent = collections.defaultdict(list)
-
-        # 　抽取词 ---> KG中的主体股票和发布时间
-        extraction_stock = ent_dict['主体'].get('股票', [])
-        if extraction_stock:  # 选出最匹配的股票主体
-            for e_stock in extraction_stock:
-                match_helper(e_stock, '股票')
-                if self.bleu(basic_ent['股票'][-1], e_stock) == 0:
-                    basic_ent['股票'].pop()
-
-        ent_dict['主体']['股票'] = basic_ent['股票']
-
         times_fin, times_gudong, times_dayline = {}, {}, {}
         stock_list = ent_dict['主体']['股票']
-        intent_list = ent_dict['intent']
+        intent_list = ent_dict['意图']
         time_list = ent_dict['发布时间']
 
         if stock_list:
@@ -208,19 +116,19 @@ class AnswerSearcher:
                 # times_gudong[subject] = time_gudong[0]['time']
                 # times_dayline[subject] = sorted(time_dayline[0]['time'].split(','))
 
-        sql_dict_table = ''
+        cypher_dict_table = ''
         if type == 'table':
             basic_table_ent = {'主体': {'股票': ent_dict['主体']['股票']}, '发布时间': [
-                '2023年'], 'intent': ['基本面']}
-            sql_dict_table = self.QP.question2sql(
+                '2023年'], '意图': ['基本面']}
+            cypher_dict_table = self.QP.question2cypher(
                 basic_table_ent, (times_fin, times_gudong, times_dayline))
             # 拿最近十年的数据
             ent_dict['发布时间'] = [f'{2023 - x +1}年' for x in range(10, 0, -1)]
 
-        sql_dict = self.QP.question2sql(
+        cypher_dict = self.QP.question2cypher(
             ent_dict, (times_fin, times_gudong, times_dayline))
 
-        if sql_dict['times'] > 2 or type == 'table' or self.is_trunc:
+        if cypher_dict['times'] > 2 or type == 'table' or self.is_trunc:
             self.is_trunc = True
         else:
             self.is_trunc = False
@@ -260,7 +168,8 @@ class AnswerSearcher:
         #     ret = ''
         #     if labl and prop:
         #         truc = self.truncation if is_trunc else len(prop)
-        #         ret_tmp = f'存在财务指标-{labl}如下表所示\n|属性|值|\n|----|----|\n' + '\n'.join([f"|{k}|{v}|" for k, v in list(prop.items())[:truc]])+'\n|----|----|\n\n'
+        #         ret_tmp = f'存在财务指标-{labl}如下表所示\n|属性|值|\n|----|----|\n' + '\n'.join([f"|{k}|{v}|"
+        #         for k, v in list(prop.items())[:truc]])+'\n|----|----|\n\n'
         #         if ret_tmp not in no_rep:
         #             # if is_trunc: # 先取全部 后截取 截取后加入集合
         #             # no_rep.add(ret_tmp)
@@ -278,11 +187,11 @@ class AnswerSearcher:
 
         #     queue.put(result)
 
-        # def get_res(sql):
+        # def get_res(cypher):
         #     result_queue = Queue()
         #     # 创建停止事件对象
         #     stop_event = threading.Event()
-        #     thread = threading.Thread(target=run_query, args=(sql, result_queue, stop_event))
+        #     thread = threading.Thread(target=run_query, args=(cypher, result_queue, stop_event))
         #     thread.setDaemon(True) # 将线程设置为守护线程，当主线程终止时，守护线程也会被强制终止。
 
         #     thread.start() # 启动线程
@@ -326,7 +235,7 @@ class AnswerSearcher:
             '成长能力': ['归属母公司净利润增长率', '营业总收入增长率', '净利润', '营业总收入', '归母净利润', '扣非净利润'],
             '收益质量': ["经营活动净现金/归属母公司的净利润", "经营性现金净流量/营业总收入", "销售成本率", "成本费用率", "所得税/利润总额", "经营活动净现金/销售收入"],
             '主营指标': ['name', '分类类型', '收入比例', '成本比例', '利润比例'],
-            '股东明细': ['name', '名次', '持股数', '占总股本持股比例', '增减']
+            '持股信息': ['name', '名次', '持股数', '占总股本持股比例', '增减']
         }
         attr_unit = {
             "资产总计": "亿元",
@@ -380,24 +289,24 @@ class AnswerSearcher:
             "经营活动净现金/销售收入": ""
         }
 
-        def get_data(sql_dict):
+        def query_data_from_neo4j(cypher_dict):
             output = ''
             no_rep = set()  # 相同的节点类型提前声明有哪些属性prop 且不重复
             no_rep_desc = set()  # 相同的prop描述 不重复
             node_res = []  # 将查询结果缓存
             rel_res = []
-            for desc_prefix, sql in sql_dict['node']:
+            for desc_prefix, cypher in cypher_dict['node']:
                 # try:
                 #     #超时将抛出异常
                 #     with eventlet.Timeout(self.timeout, True):  # 设置超时时间为2秒
-                #         res = self.g.run(sql).data()
+                #         res = self.g.run(cypher).data()
                 # except eventlet.timeout.Timeout:
                 #     print('查询超时！')
 
                 # 设置随机数种子
                 random.seed(42)
 
-                res = self.g.run(sql).data()
+                res = self.g.run(cypher).data()
                 if res:
                     if desc_prefix not in no_rep:
                         output += '*'+desc_prefix
@@ -429,20 +338,20 @@ class AnswerSearcher:
                     cur_length = output+tmp_output_trunc if self.is_trunc else output+tmp_output
                     output = cur_length
 
-            for desc_prefix, sql in sql_dict['path']:
-                # print(sql)
-                # res = test(sql)
+            for desc_prefix, cypher in cypher_dict['path']:
+                # print(cypher)
+                # res = test(cypher)
                 # try:
                 #     #超时将抛出异常
                 #     with eventlet.Timeout(self.timeout, True):  # 设置超时时间为2秒
-                #         res = self.g.run(sql).data()
+                #         res = self.g.run(cypher).data()
                 # except eventlet.timeout.Timeout:
                 #     print('查询超时！')
 
                 # 设置随机数种子
                 random.seed(42)
                 # global start
-                res = self.g.run(sql).data()
+                res = self.g.run(cypher).data()
                 if res:
                     if desc_prefix not in no_rep:
                         output += '*'+desc_prefix
@@ -455,7 +364,7 @@ class AnswerSearcher:
                     for r in res:
                         labl_rel, prop_rel, labl_node, prop_node = list(
                             r.values())
-                        if labl_node == None:
+                        if labl_node is None:
                             continue
                         if labl_node in prioritize_keys.keys():
                             prop_node = prioritize_key(
@@ -513,8 +422,8 @@ class AnswerSearcher:
                         output = cur_length
             return output
 
-        output = get_data(sql_dict)
-        output_table = get_data(sql_dict_table) if sql_dict_table else ''
+        output = query_data_from_neo4j(cypher_dict)
+        output_table = query_data_from_neo4j(cypher_dict_table) if cypher_dict_table else ''
 
         def json_load(data):
             table = []
@@ -634,7 +543,7 @@ if __name__ == '__main__':
     # logging.basicConfig(filename='answer2.log', level=logging.INFO, format='%(message)s')
 
     ent_dict = {'主体': {'股票': ['东方财富']}, '发布时间': [],
-                'intent': ['常用指标']}
+                '意图': ['常用指标']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -642,7 +551,7 @@ if __name__ == '__main__':
     print(answer)
     # 1
     ent_dict = {'主体': {'股票': ['广发证券', '光大证券']},
-                '发布时间': ['2022年', '2023年'], 'intent': ['财务报表']}
+                '发布时间': ['2022年', '2023年'], '意图': ['财务报表']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -651,7 +560,7 @@ if __name__ == '__main__':
     logging.info(len(AS.encoding.encode(answer)))
     logging.info(answer)
     # 2
-    ent_dict = {'主体': {'股票': ['东方财富']}, '发布时间': [''], 'intent': ['实际控制人']}
+    ent_dict = {'主体': {'股票': ['东方财富']}, '发布时间': [''], '意图': ['实际控制人']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -660,7 +569,7 @@ if __name__ == '__main__':
     logging.info(len(AS.encoding.encode(answer)))
     logging.info(answer)
     # 3
-    ent_dict = {'主体': {'股票': ['广发证券']}, '发布时间': ['2022年'], 'intent': ['财务指标']}
+    ent_dict = {'主体': {'股票': ['广发证券']}, '发布时间': ['2022年'], '意图': ['财务指标']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -671,7 +580,7 @@ if __name__ == '__main__':
     # 4
     ent_dict = {'主体': {'股票': ['广发证券']},
                 "发布时间": ['2022年', '2021年'],  # '2020年3月31日',
-                'intent': ['财务指标']}
+                '意图': ['财务指标']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -682,7 +591,7 @@ if __name__ == '__main__':
     # 5
     ent_dict = {'主体': {'股票': ['东方财富']},
                 "发布时间": ['2022年', '2021年'],  # '2020年3月31日',
-                'intent': ['财务指标']}
+                '意图': ['财务指标']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -693,7 +602,7 @@ if __name__ == '__main__':
     # 6
     ent_dict = {'主体': {'股票': ['广发证券']},
                 "发布时间": ['2023年3月'],  # '2020年3月31日',
-                'intent': ['基本面']}
+                '意图': ['基本面']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -704,7 +613,7 @@ if __name__ == '__main__':
     # 7
     ent_dict = {'主体': {'股票': [''], '行业': ['医疗服务']},
                 "发布时间": [''],  # '2020年3月31日',
-                'intent': ['成分股']}
+                '意图': ['成分股']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -715,7 +624,7 @@ if __name__ == '__main__':
     # 8
     ent_dict = {'主体': {'股票': [''], '行业': ['化学制药']},
                 "发布时间": ['2022年'],  # '2020年3月31日',
-                'intent': ['']}
+                '意图': ['']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -726,7 +635,7 @@ if __name__ == '__main__':
     # 9
     ent_dict = {'主体': {'股票': [''], '行业': ['化学制药']},
                 "发布时间": [''],  # '2020年3月31日',
-                'intent': ['板块']}
+                '意图': ['板块']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -737,7 +646,7 @@ if __name__ == '__main__':
     # 10
     ent_dict = {'主体': {'股票': [''], '行业': ['化学制药']},
                 "发布时间": ['2022年'],  # '2020年3月31日',
-                'intent': ['评价']}  # 失败
+                '意图': ['评价']}  # 失败
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -748,7 +657,7 @@ if __name__ == '__main__':
     # 11
     ent_dict = {'主体': {'股票': ['中国中免']},
                 "发布时间": ['2022年'],  # '2020年3月31日',
-                'intent': ['基本面']}
+                '意图': ['基本面']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -759,7 +668,7 @@ if __name__ == '__main__':
     # 12
     ent_dict = {'主体': {'股票': ['泸州老窖', '洋河股份']},
                 "发布时间": ['2022年', '2021年'],  # '2020年3月31日',
-                'intent': ['财务指标']}
+                '意图': ['财务指标']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -770,7 +679,7 @@ if __name__ == '__main__':
     # 13
     ent_dict = {'主体': {'股票': ['分众传媒']},
                 "发布时间": [''],  # '2020年3月31日',   fail
-                'intent': ['实控人']}
+                '意图': ['实控人']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -781,7 +690,7 @@ if __name__ == '__main__':
     # 14
     ent_dict = {'主体': {'股票': ['贵州茅台']},
                 "发布时间": ['2022年'],  # '2020年3月31日',
-                'intent': ['净利润']}  # '财务指标',
+                '意图': ['净利润']}  # '财务指标',
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -792,7 +701,7 @@ if __name__ == '__main__':
     # 15
     ent_dict = {'主体': {'股票': ['协和电子']},
                 "发布时间": ['2020年3月31日'],  # '2020年3月31日',
-                'intent': ['财务指标']}
+                '意图': ['财务指标']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -803,7 +712,7 @@ if __name__ == '__main__':
     # 16
     ent_dict = {'主体': {'股票': ['协和电子']},
                 "发布时间": ['2020年3月31日'],  # '2020年3月31日',
-                'intent': ['基本每股收益']}
+                '意图': ['基本每股收益']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -814,7 +723,7 @@ if __name__ == '__main__':
     # 17
     ent_dict = {'主体': {'股票': ['光洋股份'], '行业': ['航空航天', '航空机场', '包装材料']},
                 "发布时间": [''],  # '2020年3月31日',
-                'intent': ['基本每股收益', '财务指标', '每股指标', '板块']}
+                '意图': ['基本每股收益', '财务指标', '每股指标', '板块']}
     answer = AS.search_main(ent_dict)
     start = time.time()
     answer = AS.search_main(ent_dict)
@@ -827,7 +736,7 @@ if __name__ == '__main__':
     # 18
     ent_dict = {'主体': {'股票': ['N赛维']},
                 "发布时间": [''],  # '2020年3月31日',
-                'intent': ['基本面']}
+                '意图': ['基本面']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -838,7 +747,7 @@ if __name__ == '__main__':
     # 19
     ent_dict = {'主体': {'股票': ['N赛维']},
                 "发布时间": [''],  # '2020年3月31日',
-                'intent': ['板块']}
+                '意图': ['板块']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -849,7 +758,7 @@ if __name__ == '__main__':
     # 20
     ent_dict = {'主体': {'股票': ['长电科技']},
                 "发布时间": [''],  # '2020年3月31日',
-                'intent': ['财务指标']}
+                '意图': ['财务指标']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -860,7 +769,7 @@ if __name__ == '__main__':
     # 21
     ent_dict = {'主体': {'股票': ['长电科技']},
                 "发布时间": [''],  # '2020年3月31日',
-                'intent': ['主营信息']}
+                '意图': ['主营信息']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -871,7 +780,7 @@ if __name__ == '__main__':
     # 22
     ent_dict = {'主体': {'股票': ['长电科技']},
                 "发布时间": [''],  # '2020年3月31日',
-                'intent': ['行业板块']}
+                '意图': ['行业板块']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -882,7 +791,7 @@ if __name__ == '__main__':
     # 23
     ent_dict = {'主体': {'股票': ['协和电子']},
                 "发布时间": ['2020年3月31日'],  # '2020年3月31日',
-                'intent': ['营业总收入']}
+                '意图': ['营业总收入']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -893,7 +802,7 @@ if __name__ == '__main__':
     # 24
     ent_dict = {'主体': {'股票': ['N赛维']},
                 "发布时间": [''],  # '2020年3月31日',   失败 时间没对上
-                'intent': ['股东信息']}
+                '意图': ['股东信息']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -904,7 +813,7 @@ if __name__ == '__main__':
     # 25
     ent_dict = {'主体': {'股票': ['N赛维']},
                 "发布时间": [''],  # '2020年3月31日',
-                'intent': ['股东信息', '情况', '可以', '控股人']}
+                '意图': ['股东信息', '情况', '可以', '控股人']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -915,7 +824,7 @@ if __name__ == '__main__':
     # 26
     ent_dict = {'主体': {'股票': ['广发证券']},
                 "发布时间": ['2022年', '2023'],  # '2020年3月31日',
-                'intent': ['财务指标']}
+                '意图': ['财务指标']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -926,7 +835,7 @@ if __name__ == '__main__':
     # 27
     ent_dict = {'主体': {'股票': ['浙江仙通']},
                 "发布时间": ['2022年', '2023'],  # '2020年3月31日',
-                'intent': ['实控人']}
+                '意图': ['实控人']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -937,7 +846,7 @@ if __name__ == '__main__':
     # 28
     ent_dict = {'主体': {'股票': ['浙江仙通']},
                 "发布时间": ['2022年', '2023'],  # '2020年3月31日',
-                'intent': ['控股人']}
+                '意图': ['控股人']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -948,7 +857,7 @@ if __name__ == '__main__':
     # 29
     ent_dict = {'主体': {'股票': ['广发证券']},
                 "发布时间": ['2022年9月'],  # '2022年', '2023',
-                'intent': ['评级']}
+                '意图': ['评级']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -959,7 +868,7 @@ if __name__ == '__main__':
     # 30
     ent_dict = {'主体': {'股票': ['广发证券']},
                 "发布时间": ['2022年9月'],  # '2022年', '2023',
-                'intent': ['基本面']}
+                '意图': ['基本面']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
@@ -971,7 +880,7 @@ if __name__ == '__main__':
     # 31
     ent_dict = {'主体': {'股票': ['光洋股份'], '行业': ['航空航天', '航空机场', '包装材料']},
                 "发布时间": ['2023'],  # '2020年3月31日',
-                'intent': ['基本每股收益',]}
+                '意图': ['基本每股收益',]}
     answer = AS.search_main(ent_dict)
     start = time.time()
     answer = AS.search_main(ent_dict)

@@ -28,6 +28,7 @@ class Milvus:
                 self.collection = self._create_attribute_collection()
             else:
                 raise NotImplementedError
+        return self.collection
 
     def _create_stock_collection(self):
 

@@ -1,5 +1,7 @@
 import ast
+import collections
 import json
+import math
 import re
 import threading
 from abc import ABC, abstractmethod
@@ -171,31 +173,32 @@ class IETool(BaseModel):
         当需要从问题中抽取主体信息时使用
         '''
         self._template = """
-        你是一名金融信息抽取员，需要从问题中抽取出['公司', '行业', '时间', '内容']，抽取的内容必须是问题中的字段，不能胡编，并且必须以“'公司': [], '行业': [], '时间': [], '内容': []”的形式回复。
+        你是一名金融信息抽取员，需要从问题中抽取出['公司', '行业', '时间', '意图']，抽取的内容必须是问题中的字段，不能乱编，
+        并且必须以“'公司': [], '行业': [], '时间': [], '意图': []”的形式回复。
 
         举例1：
             问题：2019年药明康德衍生金融资产和其他非流动金融资产分别是多少元?
-            信息抽取：'公司': ['药明康德'], '行业': [], '时间': ['2019年'], '内容': ['衍生金融资产', '其他非流动金融资产']
+            信息抽取：'公司': ['药明康德'], '行业': [], '时间': ['2019年'], '意图': ['衍生金融资产', '其他非流动金融资产']
 
         举例2：
             问题：上海中谷物流股份有限公司2020年营业收入是多少元?
-            信息抽取：'公司': ['上海中谷物流股份有限公司'], '行业': [], '时间': ['2020年'], '内容': ['营业收入']
+            信息抽取：'公司': ['上海中谷物流股份有限公司'], '行业': [], '时间': ['2020年'], '意图': ['营业收入']
 
         举例3：
             问题：激光行业近三年的发展如何？
-            信息抽取：'公司': [], '行业': ['激光行业'], '时间': ['近三年'], '内容': ['发展']
+            信息抽取：'公司': [], '行业': ['激光行业'], '时间': ['近三年'], '意图': ['发展']
 
         举例4：
             问题：证券行业近三年的发展如何？
-            信息抽取：'公司': [], '行业': ['证券行业'], '时间': ['近三年'], '内容': ['发展']
+            信息抽取：'公司': [], '行业': ['证券行业'], '时间': ['近三年'], '意图': ['发展']
 
         举例5：
             问题：分众传媒与新潮传媒谁的利润率更高？
-            信息抽取：'公司': ['分众传媒', '新潮传媒'], '行业': [], '时间': [], '内容': ['利润率']
+            信息抽取：'公司': ['分众传媒', '新潮传媒'], '行业': [], '时间': [], '意图': ['利润率']
 
         举例6：
             问题：广发证券 东方财富证券 东方证券的基本面哪一个更好？
-            信息抽取：'公司': ['广发证券', '东方财富证券'， '东方证券'], '行业': [], '时间': [], '内容': ['基本面']
+            信息抽取：'公司': ['广发证券', '东方财富证券'， '东方证券'], '行业': [], '时间': [], '意图': ['基本面']
 
         问题：{query}
         信息抽取："""
@@ -266,10 +269,10 @@ class KGRetrieveTool(BaseModel):
         self.args = args
         self.embeddings_func = get_embedding
         # Milvus(self.embeddings)
-        self.stock_threshold = 0.8
-        self.attr_threshold = 0.7
-        self.reference_llm = reference_llm
-        self.search_params = {"metric_type": "COSINE", "params": {"nprobe": 1024}}
+        self.stock_matched_threshold = 0.8
+        self.intent_matched_threshold = 0.7
+        self.refevrence_llm = reference_llm
+        self.vec_search_params = {"metric_type": "L2", "params": {"nprobe": 1024}}
 
     def renew_prompt(self, prompt):
         self._template = prompt
@@ -435,19 +438,17 @@ class KGRetrieveTool(BaseModel):
         return new_time_list
 
     def get_reference(self, query):
-        question_analysis = self.get_question_analysis(query)
-        f_question_analysis = self._process_ner_ret(question_analysis)
-        lore = ''
+        question_dict = self.get_question_analysis(query)
+        query_res = ''
         if self.verbose:
-            logging.info(f"f_question_analysis: {f_question_analysis}     question_analysis: {question_analysis}")
-        if f_question_analysis:
-            companynames = f_question_analysis.get('主体').get('股票')
-            lore = self.graph_searcher.search_main(f_question_analysis)
+            logging.info(f"question_analysis: {question_dict}")
+        if question_dict:
+            query_res = self.graph_searcher.search_main(question_dict)
             # 图表数据写入redis
             # 另起线程去执行
             logging.info("开始查询图表数据")
             sub_thread = threading.Thread(target=self.finance_table_to_redis,
-                                          args=(f_question_analysis,))
+                                          args=(question_dict,))
             sub_thread.start()
 
             # self.finance_table_to_redis(f_question_analysis)
@@ -455,24 +456,24 @@ class KGRetrieveTool(BaseModel):
         # self.reference = dict(
         #     content=lore
         # )
-        #返回问题第一次解析后的结果以及在图谱的查询结果
-        return f_question_analysis,lore
+        # 返回问题第一次解析后的结果以及在图谱的查询结果
+        return question_dict, query_res
 
     def run(self, query):
-        f_question_analysis,lore = self.get_reference(query)
+        question_dict, query_res = self.get_reference(query)
         # 将回答的问题开启流式输出
         self.llm.streaming = True
         self.get_llm_chain()
-        #如果没有识别到有效的主体
+        # 如果没有识别到有效的主体
         base_prompt = """
         问题：{query}
         答案："""
-        if not f_question_analysis:
+        if not question_dict:
             self.renew_prompt(base_prompt)    
-        #如果问题第一次解析后没有获得有效的图谱意图，则进入第二次解析，增加方案生成和属性获取的组件调用
-        elif not lore:
-            question_analysis = deepcopy(f_question_analysis)
-            answer_dict = asyncio.run(self.genereate_multi_reply_concurrently(query,question_analysis))
+        # 如果问题第一次解析后没有获得有效的图谱意图，则进入第二次解析，增加方案生成和属性获取的组件调用
+        elif not query_res:
+            question_analysis = deepcopy(question_dict)
+            answer_dict = asyncio.run(self.genereate_multi_reply_concurrently(query, question_analysis))
             if answer_dict:
                 llm_ans = '\n####\n'.join([f'{key}:{value}' for key, value in answer_dict.items()]) + '\n'
                 new_prompt = """
@@ -494,7 +495,7 @@ class KGRetrieveTool(BaseModel):
                 self.renew_prompt(base_prompt)
         else:
             self.reference = dict(
-                content=lore
+                content=query_res
                 )
         if self.verbose:
             logging.info(f"Tool's name is {self.name}. Its reference is {self.reference}.")
@@ -513,44 +514,13 @@ class KGRetrieveTool(BaseModel):
         redis.rpush(self.kwargs.get('progress_key'), json_data)
         logging.info("开始写入redis完")
 
-    @staticmethod
-    def _process_ner_ret(question_analysis):
-        """
-        临时处理问题抽取的输出 格式化成 知识图谱的入参
-
-        {'主体': {'股票': ['光洋股份'], '行业': ['航空航天', '航空机场', '包装材料']},
-                    "发布时间": ['2020年3月31日'],
-                    'intent': ['基本每股收益', '财务指标', '每股指标']}
-        """
-        ret = {'主体': {},
-               "发布时间": [],
-               'intent': [],
-               'stock_map':{}}
-        if not question_analysis:
-            return
-        stocks = question_analysis.get('公司')
-        ners = question_analysis.get('属性')
-        reportdate = question_analysis.get('时间')
-        if not stocks:
-            return
-        if reportdate:
-            for i in ['年', '月', '日']:
-                if i not in reportdate:
-                    break
-            ret['发布时间'] = reportdate
-        ret['主体']['股票'] = stocks
-        ret['主体']['行业'] = ['']
-        ret['intent'] = ners
-        ret['stock_map'] = question_analysis['stock_map']
-        return ret
-
     def vector_search(self, text, collection_name, output_fields):
         embeddings = self.embeddings_func(text=text)
         conn = Milvus(collection_name=collection_name).connect()
         res = conn.search(
             data=[embeddings],
             anns_field='vector',
-            param=self.search_params,
+            param=self.vec_search_params,
             limit=1,
             output_fields=output_fields
         )
@@ -565,24 +535,116 @@ class KGRetrieveTool(BaseModel):
         ie = IETool(self.reference_llm)
         tr = TimeResolveTool(self.reference_llm)
         ie_res = ast.literal_eval("{*}".replace('*', ie.run(query)))
-        res = {'公司': [], '行业': [], '时间': [], '属性': [], 'stock_map': {}}
-        for query in ie_res["公司"]:
-            stock_res = self.vector_search(query, 'stock', ['stock', 'text','stock_code'])
+        question_dict = {
+            '主体': {
+                '股票': []
+            },
+            '时间': [],
+            '意图': []}
+        for extract_stock in ie_res["公司"]:
+            matched_stock_list = self.get_kg_matched_subject(subject=extract_stock,
+                                                             match_type='stock',
+                                                             subject_type='股票')
 
-            if stock_res and stock_res[0].get('score') >= self.stock_threshold:
-                stock = stock_res[0]['stock']
-                code = stock_res[0]['stock_code']
-                res['公司'].append(stock)
-                res['stock_map'][stock] = code
-        for query in ie_res["时间"]:
-            tr_res = ast.literal_eval(tr.run(query))
-            res['时间'] += tr_res
-        for query in ie_res["内容"]:
-            attribute_res = self.vector_search(query, 'attribute', ['text'])
+            question_dict['主体']['股票'] += matched_stock_list
+        for extract_time in ie_res["时间"]:
+            process_time = ast.literal_eval(tr.run(extract_time))
+            question_dict['时间'] += process_time
+        for extract_intent in ie_res["意图"]:
+            matched_attr_list = self.get_kg_matched_subject(subject=extract_intent,
+                                                            match_type='intent',
+                                                            subject_type='属性')
+            matched_ent_list = self.get_kg_matched_subject(subject=extract_intent,
+                                                           match_type='intent',
+                                                           subject_type='实体')
+            question_dict['意图'] += matched_attr_list + matched_ent_list
+        return question_dict
 
-            if attribute_res and attribute_res[0].get('score') >= self.attr_threshold:
-                res['属性'].append(attribute_res[0].get('text'))
-        return res
+    # bleu 和 编辑距离 用于计算相似度
+    @staticmethod
+    def bleu(ner, ent):
+        """计算抽取实体与现有实体的匹配度 ner候选词, ent查询词"""
+        len_pred, len_label = len(ner), len(ent)
+        k = min(len_pred, len_label)
+        if k == 0:
+            return 0
+        score = math.exp(min(0, int(1 - len_label / len_pred)))
+        # score = 0
+        flag = False
+        for n in range(1, k + 1):
+            num_matches, label_subs = 0, collections.defaultdict(int)
+            for i in range(len_label - n + 1):
+                label_subs[" ".join(ent[i: i + n])] += 1
+            for i in range(len_pred - n + 1):
+                if label_subs[" ".join(ner[i: i + n])] > 0:
+                    num_matches += 1
+                    flag = True
+                    label_subs[" ".join(ner[i: i + n])] -= 1  # 不重复
+            if not flag and num_matches == 0:  # 一次都没匹配成功
+                score = 0
+                break
+            elif num_matches == 0:  # 进行到最大匹配后不再计算
+                break
+            score *= math.pow(num_matches / (len_pred -
+                                             n + 1), math.pow(0.5, n))
+        return score if score > 0 else 0
+
+    @staticmethod
+    def editing_distance(word1, word2):
+        try:
+            m, n = len(word1), len(word2)
+        except:
+            return float('inf')
+
+        if m == 0 or n == 0:
+            return abs(m - n)
+        dp = [[float('inf') for _ in range(n + 1)] for _ in range(m + 1)]
+
+        for i in range(m):
+            dp[i][0] = i
+
+        for i in range(n):
+            dp[0][i] = i
+
+        for i in range(1, m + 1):
+            for j in range(1, n + 1):
+
+                if word1[i - 1] == word2[j - 1]:
+                    dp[i][j] = dp[i - 1][j - 1]
+                else:
+                    # 替换
+                    dp[i][j] = dp[i - 1][j - 1] + 1
+                    # 删除
+                    dp[i][j] = min(dp[i][j], min(dp[i - 1][j], dp[i][j - 1]) + 1)
+        return dp[-1][-1]
+
+    @staticmethod
+    def equal(subject_1: str, subject_2: str) -> bool:
+        if subject_2 in subject_1:
+            return True
+        return False
+
+    def get_kg_matched_subject(self, subject, match_type, subject_type):
+        '''
+
+        更新basic_ent[subject]
+        '''
+        scores_best = float('inf')
+        equal_flag = False
+        most_similar_subject = ''
+        matched_subject_list = []
+        match_threshold = self.stock_matched_threshold if match_type == 'stock' else self.intent_matched_threshold
+        for kg_subject in self.graph_searcher.knowledge[subject_type]:
+            if self.equal(subject, kg_subject):
+                matched_subject_list.append(kg_subject)
+                equal_flag = True
+            scores_cur = self.editing_distance(kg_subject, subject)
+            if scores_cur < scores_best:
+                most_similar_subject = kg_subject
+                scores_best = scores_cur
+        if not equal_flag and self.bleu(subject, most_similar_subject) >= match_threshold:
+            matched_subject_list.append(most_similar_subject)
+        return matched_subject_list
 
     def get_mk_data(self,name,symbol,start_date,end_date):
         # 创建数据库连接
@@ -590,15 +652,16 @@ class KGRetrieveTool(BaseModel):
         cursor = conn.cursor()
 
         # 执行sql语句
-        sql = 'SELECT trade_date,low,high,close,volume FROM  a_market_data_day_K WHERE symbol = %s and trade_date >= %s and trade_date <= %s ORDER BY trade_date DESC'
+        sql = 'SELECT trade_date,low,high,close,volume FROM  a_market_data_day_K WHERE symbol = %s and ' \
+              'trade_date >= %s and trade_date <= %s ORDER BY trade_date DESC'
         cursor.execute(sql, [int(symbol),start_date, end_date])
         rows = cursor.fetchall()
         conn.close()
 
-        #将查询结果存入字典
-        keys = ['交易日','最低价','最高价','收盘价','成交量']
+        # 将查询结果存入字典
+        keys = ['交易日', '最低价','最高价','收盘价','成交量']
         df = pd.DataFrame(list(rows), columns=keys).set_index('交易日',drop = True)
-        df[['最低价','最高价','收盘价']] = df[['最低价','最高价','收盘价']].astype(float).round(2)
+        df[['最低价', '最高价', '收盘价']] = df[['最低价','最高价','收盘价']].astype(float).round(2)
         df['成交量'] = df['成交量'].astype(float).apply(lambda x:"{:.0f}".format(x))
         df['涨跌幅'] = (df['收盘价']/df['收盘价'].shift(-1) - 1).apply(lambda x:"{:.2%}".format(x))
         return f'{name}从{start_date}到{end_date}的行情信息如下: \n {df.to_markdown()}'
