@@ -32,7 +32,7 @@ if user_input:
             '请先选择模型！', icon="⚠️")
         st.stop()
 
-    tool = agent.choose_tools(query=user_input)
+    # tool = agent.choose_tools(query=user_input)
 
 
     with st.chat_message(name='autogen', avatar='assistant'):

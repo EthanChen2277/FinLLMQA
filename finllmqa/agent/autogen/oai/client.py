@@ -6,6 +6,8 @@ from typing import Any, List, Optional, Dict, Callable, Tuple, Union
 import logging
 import inspect
 import uuid
+
+from finllmqa.api.core import STREAM_BUFFER
 from flaml.automl.logger import logger_formatter
 
 from pydantic import BaseModel
@@ -53,8 +55,6 @@ if not logger.handlers:
 LEGACY_DEFAULT_CACHE_SEED = 41
 LEGACY_CACHE_DIR = ".cache"
 OPEN_API_BASE_URL_PREFIX = "https://api.openai.com"
-
-stream_buffer = {}
 
 
 class ModelClient(Protocol):
@@ -160,7 +160,6 @@ class OpenAIClient:
             The completion.
         """
         completions: Completions = self._oai_client.chat.completions if "messages" in params else self._oai_client.completions  # type: ignore [attr-defined]
-        global stream_buffer
         agent_name = params.pop("agent_name", "未知")
         user_input = params.pop("user_input")
         # If streaming is enabled and has messages, then iterate over the chunks of the response.
@@ -169,7 +168,7 @@ class OpenAIClient:
             finish_reasons = [""] * params.get("n", 1)
             completion_tokens = 0
             key = user_input
-            stream_buffer[key]['time'] = datetime.now()
+            STREAM_BUFFER[key]['time'] = datetime.now()
 
             # Set the terminal text color to green
             print("\033[32m", end="")
@@ -181,7 +180,7 @@ class OpenAIClient:
             one_answer = ''
             # save one answer in global variable
             if agent_name != 'chat_manager':
-                stream_buffer[key]['answer'].append(
+                STREAM_BUFFER[key]['answer'].append(
                     {
                         'name': agent_name,
                         'response': one_answer})
@@ -232,9 +231,9 @@ class OpenAIClient:
                         # If content is present, print it to the terminal and update response variables
                         if content is not None:
                             if agent_name != 'chat_manager':
-                                stream_buffer[key]['time'] = datetime.now()
+                                STREAM_BUFFER[key]['time'] = datetime.now()
                                 one_answer += content
-                                stream_buffer[key]['answer'][-1]['response'] = one_answer
+                                STREAM_BUFFER[key]['answer'][-1]['response'] = one_answer
                             print(content, end="", flush=True)
                             response_contents[choice.index] += content
                             completion_tokens += 1

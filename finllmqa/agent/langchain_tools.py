@@ -4,29 +4,37 @@ import json
 import math
 import re
 import threading
-from abc import ABC, abstractmethod
+from abc import ABC
 import logging
 import pymysql
 from datetime import datetime, timedelta
 import pandas as pd
 import asyncio
 from copy import deepcopy
+
+import requests
 from langchain.tools import BaseTool
 from langchain.base_language import BaseLanguageModel
-from langchain import PromptTemplate, LLMChain
-from langchain_community.llms.chatglm3 import ChatGLM3
+from langchain_core.prompts import PromptTemplate
+from langchain.chat_models import ChatOpenAI
 
 from finllmqa.kg.search import AnswerSearcher
 from finllmqa.api.embedding import get_embedding
-from finllmqa.api.core import SERVER_API_URL, SERVER_LLM_API_PORT, CHAT_API_URL
+from finllmqa.api.core import CHAT_API_URL, STREAM_API_URL, STREAM_BUFFER, LLM_API_URL
 from finllmqa.vector_db.construct import Milvus
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class BaseModel(ABC):
-    def __init__(self, llm: BaseLanguageModel, verbose: bool = True, *args, **kwargs):
-        self.llm = llm
+    def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True, *args, **kwargs):
+        if llm is None:
+            self.llm = ChatOpenAI(model="chatglm3",
+                                  max_tokens=2048,
+                                  base_url=LLM_API_URL,
+                                  api_key='null')
+        else:
+            self.llm = llm
         self.name = "其它"
         self.description = '''
         无需任何信息，直接回答
@@ -35,21 +43,22 @@ class BaseModel(ABC):
         问题：{query}
         答案："""
         self.prompt = None
-        self.llm_chain = None
         self.reference = dict()
         self.verbose = verbose
         self.progress_func = kwargs.get('progress_func')
         self.progress_key = kwargs.get('progress_key')
         # self.progress(progress_text='开始分析问题')
 
-    def get_prompt(self):
+    def get_prompt_template(self):
         self.prompt = PromptTemplate.from_template(self._template)
+
+    def get_str_prompt(self):
+        self.prompt = PromptTemplate.format(**self.reference)
 
     def get_reference(self, query):
         self.reference = dict()
 
     def get_llm_chain(self):
-        self.get_prompt()
         self.llm_chain = LLMChain(llm=self.llm, prompt=self.prompt, verbose=self.verbose)
 
     def progress(self, *args, **kwargs):
@@ -62,6 +71,7 @@ class BaseModel(ABC):
 
     def run(self, query):
         self.get_reference(query)
+        self.get_prompt_template()
         self.get_llm_chain()
         self.progress(progress_text='调用LLM')
         resp = self.llm_chain.predict(
@@ -72,6 +82,14 @@ class BaseModel(ABC):
             logging.info(f"Tool's name is {self.name}. Its reference is {self.reference}\n "
                          f"Q: {query} LLM Answer: {resp}.")
         return resp
+
+    @staticmethod
+    def send_query_to_autogen(query):
+        try:
+            res = requests.post(url=STREAM_API_URL, json={'prompt': query})
+            return {'msg': res.content, 'status': res.status_code}
+        except Exception as e:
+            return {'msg': e, 'status': -1}
 
     # 异步调用组件
     async def async_generate(self, query):
@@ -90,7 +108,7 @@ class BaseModel(ABC):
 
 
 class IntentAgent(BaseModel):
-    def __init__(self, llm: BaseLanguageModel, tools: list, verbose: bool = True, *args, **kwargs):
+    def __init__(self, tools: list, llm: BaseLanguageModel = None, verbose: bool = True, *args, **kwargs):
         super().__init__(llm, verbose, *args, **kwargs)
         self.name = "意图识别"
         self.description = '''
@@ -139,7 +157,7 @@ class IntentAgent(BaseModel):
 
 
 class IETool(BaseModel):
-    def __init__(self, llm: BaseLanguageModel, verbose: bool = True, *args, **kwargs):
+    def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True, *args, **kwargs):
         super().__init__(llm, verbose, *args, **kwargs)
         self.name = "金融信息抽取"
         self.description = '''
@@ -178,7 +196,7 @@ class IETool(BaseModel):
 
 
 class TimeResolveTool(BaseModel):
-    def __init__(self, llm: BaseLanguageModel, verbose: bool = True):
+    def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True):
         super().__init__(llm, verbose)
         self.name = "时间解析"
         self.description = '''
@@ -215,10 +233,41 @@ class TimeResolveTool(BaseModel):
         )
 
 
-# class AnalysisQuery(BaseModel):
+class KnowledgeAnalysisTool(BaseModel):
+    def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True):
+        super().__init__(llm, verbose)
+        self.name = "数据分析"
+        self.description = '''
+        根据已知数据分析问题
+        '''
+        self._template = """
+        请你根据以下给出的数据和问题，找出要回答这个问题可以利用哪些数据，并对已知的数据进行分析
+        请你给出具体的分析结果，不用回答问题
+
+        已知数据：
+        {data}
+        已知数据结束
+
+        问题：{query}
+        答案："""
+
+
+class PretrainInferenceTool(BaseModel):
+    def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True):
+        super().__init__(llm, verbose)
+        self.name = "预训练推理"
+        self.description = '''
+        根据预训练模型进行推理
+        '''
+        self._template = """
+        对于给定的问题，请你从{angle}的角度去分析问题,只考虑与{angle}有关的因素，不用考虑其他因素,分析字数在两百字左右
+
+        问题：{query}
+        问题分析："""
+
 
 class KGRetrieveTool(BaseModel):
-    def __init__(self, llm: BaseLanguageModel,  verbose: bool = True, *args, **kwargs):
+    def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True, *args, **kwargs):
         super().__init__(llm, verbose, *args, **kwargs)
         self.name = "金融投资"
         self.description = '''
@@ -241,35 +290,17 @@ class KGRetrieveTool(BaseModel):
         # Milvus(self.embeddings)
         self.stock_matched_threshold = 0.8
         self.intent_matched_threshold = 0.7
-        self.refevrence_llm = llm
         self.vec_search_params = {"metric_type": "L2", "params": {"nprobe": 1024}}
+        # 分别存储以知识图谱和语言模型作为知识支撑的答案生成调用
+        self.knowledge_analysis_pool = []
+        self.pretrain_inference_pool = []
 
-    def renew_prompt(self, prompt):
-        self._template = prompt
-        self.get_llm_chain()
-
-    # 异步调用llm
-    async def async_generate(self, query, chain, reference):
-        try:
-            resp = await chain.apredict(
-                query=query,
-                **reference
-            )
-        except:
-            try:
-                resp = await chain.apredict(
-                    query=query,
-                    **reference
-                )
-            except:
-                resp = ''
-        return resp
-
-    async def genereate_multi_reply_concurrently(self, query, question_analysis):
+    # 异步调用autogen问答
+    async def generate_multi_reply_concurrently(self, query, question_analysis):
         # 以知识图谱为数据底层，以大模型为知识补充
         # 分别存储以知识图谱和语言模型作为知识支撑的答案生成调用
-        data_pool = {'indicators': [], 'function_call': []}
-        llm_pool = {'indicators': [], 'function_call': []}
+        data_pool = {'angles': [], 'function_call': []}
+        llm_pool = {'angles': [], 'function_call': []}
         data_prompt = """
         请你根据以下给出的数据和问题，找出要回答这个问题可以利用哪些数据，并对已知的数据进行分析
         请你给出具体的分析结果，不用回答问题
@@ -281,7 +312,7 @@ class KGRetrieveTool(BaseModel):
         问题：{query}
         答案："""
         llm_prompt = """
-        对于给定的问题，请你从{indicator}的角度去分析问题,只考虑与{indicator}有关的因素，不用考虑其他因素,分析字数在两百字左右
+        对于给定的问题，请你从{angle}的角度去分析问题,只考虑与{angle}有关的因素，不用考虑其他因素,分析字数在两百字左右
 
         问题：{query}
         问题分析："""
@@ -291,12 +322,12 @@ class KGRetrieveTool(BaseModel):
                              verbose=self.verbose)
         answer_dict = {}
         table_question_analysis = deepcopy(question_analysis)
-        data_schema_dict = GetAttributeTool(self.llm, *self.args, **self.kwargs).run(query)
+        data_schema_dict = GetAttributeTool(self.llm).run(query)
         logging.info("回答问题的方案和数据库框架:{}".format(
             '\n'.join([f'{key} : {value}' for key, value in data_schema_dict.items()])))
         if not data_schema_dict:
             return ''
-        for indicator, two_task_answers in data_schema_dict.items():
+        for angle, two_task_answers in data_schema_dict.items():
             attrs = two_task_answers['task_one_answer']
             db_call = two_task_answers['task_two_answer']
             if 'price_db' in db_call:
@@ -312,7 +343,7 @@ class KGRetrieveTool(BaseModel):
                 reference = dict(
                     data=mk_data
                 )
-                data_pool['indicators'].append(indicator)
+                data_pool['angles'].append(angle)
                 data_pool['function_call'].append(self.async_generate(mk_query, data_chain, reference))
             if 'indicator_db' in db_call:
                 # 技术指标分析
@@ -327,7 +358,7 @@ class KGRetrieveTool(BaseModel):
                 reference = dict(
                     data=mk_data
                 )
-                data_pool['indicators'].append(indicator)
+                data_pool['angles'].append(angle)
                 data_pool['function_call'].append(self.async_generate(mk_query, data_chain, reference))
 
             if 'finance_db' in db_call:
@@ -343,29 +374,29 @@ class KGRetrieveTool(BaseModel):
                     reference = dict(
                         data=kg_data
                     )
-                    data_pool['indicators'].append(indicator)
+                    data_pool['angles'].append(angle)
                     data_pool['function_call'].append(self.async_generate(query, data_chain, reference))
                 elif len(db_call) == 1:
                     reference = dict(
-                        indicator=indicator
+                        angle=angle
                     )
-                    llm_pool['indicators'].append(indicator)
+                    llm_pool['angles'].append(angle)
                     llm_pool['function_call'].append(self.async_generate(query, llm_chain, reference))
             if len(db_call) == 0:
                 reference = dict(
-                    indicator=indicator
+                    angle=angle
                 )
-                llm_pool['indicators'].append(indicator)
+                llm_pool['angles'].append(angle)
                 llm_pool['function_call'].append(self.async_generate(query, llm_chain, reference))
 
         logging.info(f"开始第二次查询图表数据: {table_question_analysis}")
         self.finance_table_to_redis(table_question_analysis)
         answers = await asyncio.gather(*(data_pool['function_call'] + llm_pool['function_call']))
-        for indicator, ans in zip(data_pool['indicators'] + llm_pool['indicators'], answers):
-            if indicator not in answer_dict.keys():
-                answer_dict[indicator] = ans + '\n'
+        for angle, ans in zip(data_pool['angles'] + llm_pool['angles'], answers):
+            if angle not in answer_dict.keys():
+                answer_dict[angle] = ans + '\n'
             else:
-                answer_dict[indicator] += ans + '\n'
+                answer_dict[angle] += ans + '\n'
         return answer_dict
 
     def parse_market_time(self, time_list: list) -> list:
@@ -415,11 +446,47 @@ class KGRetrieveTool(BaseModel):
 
     def get_reference(self, query):
         question_dict = self.get_question_analysis(query)
-        query_res = ''
-        if self.verbose:
-            logging.info(f"question_analysis: {question_dict}")
         if question_dict:
-            query_res = self.graph_searcher.search_main(question_dict)
+            if len(question_dict['意图']) > 0:
+                query_res = self.graph_searcher.search_main(question_dict)
+                knowledge_analysis_param = {
+                    'angel': '原问题',
+                    'reference': {
+                        'content': query_res
+                    }
+                }
+                self.knowledge_analysis_pool.append(knowledge_analysis_param)
+        else:
+            self.reference = None
+        angel_intent_dict = GetAttributeTool(self.llm).run(query)
+        for angle, intent_ls in angel_intent_dict.items():
+            new_question_dict = deepcopy(question_dict)
+            for intent in intent_ls:
+                matched_attr_list = self.get_kg_matched_subject(subject=intent,
+                                                                match_type='intent',
+                                                                subject_type='属性')
+                matched_ent_list = self.get_kg_matched_subject(subject=intent,
+                                                               match_type='intent',
+                                                               subject_type='实体')
+                matched_intent_list = matched_attr_list + matched_ent_list
+                new_question_dict['意图'] += matched_intent_list
+            if len(new_question_dict['意图']) > 0:
+                query_res = self.graph_searcher.search_main(question_dict)
+                knowledge_analysis_param = {
+                    'angel': angle,
+                    'reference': {
+                        'content': query_res
+                    }
+                }
+                self.knowledge_analysis_pool.append(knowledge_analysis_param)
+            else:
+                pretrain_inference_param = {
+                    'angel': angle,
+                    'reference': {
+                        'angel': angle
+                    }
+                }
+                self.pretrain_inference_pool.append(pretrain_inference_param)
             # 图表数据写入redis
             # 另起线程去执行
             # logging.info("开始查询图表数据")
@@ -427,48 +494,31 @@ class KGRetrieveTool(BaseModel):
             #                               args=(question_dict,))
             # sub_thread.start()
 
-        # self.reference = dict(
-        #     content=lore
-        # )
-        # 返回问题第一次解析后的结果以及在图谱的查询结果
-        return question_dict, query_res
-
     def run(self, query):
-        question_dict, query_res = self.get_reference(query)
+        self.get_reference(query=query)
+        if self.reference is None:
+            answer = self.async_generate()
+            STREAM_BUFFER
+        self.get_prompt_template()
         self.get_llm_chain()
         # 如果没有识别到有效的主体
         base_prompt = """
         问题：{query}
         答案："""
-        if not question_dict:
-            self.renew_prompt(base_prompt)
-            # 如果问题第一次解析后没有获得有效的图谱意图，则进入第二次解析，增加方案生成和属性获取的组件调用
-        elif not query_res:
-            question_analysis = deepcopy(question_dict)
-            answer_dict = asyncio.run(self.genereate_multi_reply_concurrently(query, question_analysis))
-            if answer_dict:
-                llm_ans = '\n####\n'.join([f'{key}:{value}' for key, value in answer_dict.items()]) + '\n'
-                new_prompt = """
-                对下述问题的各角度分析进行汇总得到结论。
-                详细说明分析内容如何得到结论。
-                结论要全面并且有深度,字数在三百字左右。
-                仅关注分析的内容，不用回答其他方面
-                分析内容：
-                {content}
-                分析内容结束
-
-                问题：{query}
-                答案："""
-                self.renew_prompt(new_prompt)
-                self.reference = dict(
-                    content=llm_ans,
-                )
-            else:
-                self.renew_prompt(base_prompt)
-        else:
-            self.reference = dict(
-                content=query_res
-            )
+        # answer_dict = asyncio.run(self.generate_multi_reply_concurrently(query, question_analysis))
+        # if answer_dict:
+        #     llm_ans = '\n####\n'.join([f'{key}:{value}' for key, value in answer_dict.items()]) + '\n'
+        #     new_prompt = """
+        #     对下述问题的各角度分析进行汇总得到结论。
+        #     详细说明分析内容如何得到结论。
+        #     结论要全面并且有深度,字数在三百字左右。
+        #     仅关注分析的内容，不用回答其他方面
+        #     分析内容：
+        #     {content}
+        #     分析内容结束
+        #
+        #     问题：{query}
+        #     答案："""
         if self.verbose:
             logging.info(f"Tool's name is {self.name}. Its reference is {self.reference}.")
         self.progress(progress_text='调用LLM')
@@ -509,7 +559,8 @@ class KGRetrieveTool(BaseModel):
             matched_stock_list = self.get_kg_matched_subject(subject=extract_stock,
                                                              match_type='stock',
                                                              subject_type='股票')
-
+            if len(matched_stock_list) == 0:
+                return None
             question_dict['主体']['股票'] += matched_stock_list
         for extract_time in ie_res["时间"]:
             process_time = ast.literal_eval(tr.run(extract_time))
@@ -522,6 +573,8 @@ class KGRetrieveTool(BaseModel):
                                                            match_type='intent',
                                                            subject_type='实体')
             question_dict['意图'] += matched_attr_list + matched_ent_list
+        if self.verbose:
+            logging.info(f'question extraction dict: {question_dict}')
         return question_dict
 
     # bleu 和 编辑距离 用于计算相似度
@@ -652,7 +705,7 @@ class KGRetrieveTool(BaseModel):
 
 
 class CreateSchemeTool(BaseModel):
-    def __init__(self, llm: BaseLanguageModel, verbose: bool = True):
+    def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True):
         super().__init__(llm, verbose)
         self.name = "方案生成"
         self.description = '''
@@ -676,78 +729,51 @@ class CreateSchemeTool(BaseModel):
 
 
 class GetAttributeTool(BaseModel):
-    def __init__(self, llm: BaseLanguageModel, verbose: bool = True, *args, **kwargs):
+    def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True, *args, **kwargs):
         super().__init__(llm, verbose, *args, **kwargs)
         self.name = "关注指标"
         self.description = '''
         根据问题和方案生成具体指标
         '''
         self._template = """
-        请按照指令完成任务
-        任务一：
         根据给出的问题和问题分析因素,回答在当前分析因素下具体需要关注的指标,尽可能回答可以量化的指标,并以列表的形式回复。
-        任务二：
-        我有三个数据库，存储的数据内容如下：
-        finance_db:股票的财务信息
-        price_db:股票的行情信息
-        indicator_db:股票的技术指标信息
-        请你根据任务一中得到的关注指标分析需要从哪些数据库去访问这些指标，并返回数据库的名称，如果数据库中的数据与关注指标关联度不高请返回空列表
 
         举例：
         问题：葛洲坝是否值得投资？
         分析因素：财务表现
-        任务一答案: ['*','*','*',]
-        任务二答案: ['finance_db']
+        关注指标: ['资产负债率', '净利润', '营业总收入'] 
         
         问题：葛洲坝是否值得投资？
         分析因素：价格走势
-        任务一答案: ['*','*','*',]
-        任务二答案: ['price_db']
+        关注指标: ['五日均线', '二十日均线', '布林带指标']
 
         问题：葛洲坝是否值得投资？
         分析因素：盈利能力
-        任务一答案: ['*','*','*',]
-        任务二答案: ['finance_db','price_db']
+        关注指标: ['净资产收益率','总资产净利率','毛利率']
 
         问题：葛洲坝是否值得投资？
         分析因素：竞争对手
-        任务一答案: ['*','*','*',]
-        任务二答案: []
+        关注指标: []
         
         问题：{query}
-        分析因素：{indicator}
-        任务一答案: ？
-        任务二答案: ？"""
-
-    def extract_answers(self, input_string):
-        # 使用正则表达式提取任务一和任务二的答案
-        pattern_task_one = r"任务一答案: (\[.*?\])"
-        pattern_task_two = r"任务二答案: (\[.*?\])"
-
-        # 使用正则表达式匹配
-        match_task_one = re.search(pattern_task_one, input_string)
-        match_task_two = re.search(pattern_task_two, input_string)
-
-        # 提取匹配的内容
-        task_one_answer = eval(match_task_one.group(1)) if match_task_one else None
-        task_two_answer = eval(match_task_two.group(1)) if match_task_two else None
-
-        return task_one_answer, task_two_answer
+        分析因素：{angle}
+        关注指标: """
 
     def run(self, query):
+        self.get_prompt_template()
         self.get_llm_chain()
         scheme_tool = CreateSchemeTool(self.llm)
+        scheme = scheme_tool.run(query)
         try:
-            scheme = scheme_tool.run(query)
-            indicators = ast.literal_eval(scheme)
+            angle_list = ast.literal_eval(scheme)
         except:
             logging.info(f"生成的方案不是列表形式，无法被解析:{scheme}")
             return ''
         response = {}
-        for indicator in indicators:
-            self.progress(progress_text=f'正在分析 {indicator}')
+        for angle in angle_list:
+            self.progress(progress_text=f'正在分析 {angle}')
             self.reference = dict(
-                indicator=indicator
+                angle=angle
             )
             if self.verbose:
                 logging.info(f"Tool's name is {self.name}. Its reference is {self.reference}.")
@@ -757,11 +783,8 @@ class GetAttributeTool(BaseModel):
             )
             logging.info(f"抽出来的指标:{resp}")
             try:
-                task_one_ans, task_two_ans = self.extract_answers(resp)
-                response[indicator] = dict(
-                    task_one_answer=task_one_ans,
-                    task_two_answer=task_two_ans
-                )
+                indicator_list = ast.literal_eval(resp)
+                response[angle] = indicator_list
             except Exception as e:
                 logging.info(e)
                 logging.info(f"生成的指标不是列表形式，无法被解析:{resp}")
@@ -780,22 +803,45 @@ def handle_answer(text: str):
 
 
 if __name__ == "__main__":
-    llm = ChatGLM3(
-        endpoint_url=SERVER_API_URL + SERVER_LLM_API_PORT + CHAT_API_URL,
-        max_tokens=8096,
-        top_p=0.9
-    )
-    tools = [KGRetrieveTool(llm), BaseModel(llm)]
-    agent = IntentAgent(llm=llm, tools=tools)
-    query = "李白写过哪些诗"
-    tool = agent.choose_tools(query)
-    print(tool.name)
-    print(tool.run(query))
+    # llm = ChatGLM3(
+    #     endpoint_url=CHAT_API_URL,
+    #     max_tokens=8096,
+    #     top_p=0.9
+    # )
+    from dotenv import load_dotenv
+    from langchain_community.llms.chatglm3 import ChatGLM3
+    from langchain.prompts import ChatPromptTemplate
 
-    query = "后天是周末吗"
-    tool = agent.choose_tools(query)
-    print(tool.name)
-    print(tool.run(query))
+    load_dotenv()
+
+    llm = ChatGLM3(
+        endpoint_url=CHAT_API_URL,
+        max_tokens=8096,
+        top_p=0.9,
+        streaming=True
+    )
+
+    prompt = ChatPromptTemplate.from_messages(
+        [("system", "你是一个专业的AI助手。"), ("human", "{query}")]
+    )
+
+    # llm_chain = prompt | llm.bind(model="chatglm3")  # bin的用法
+    llm_chain = prompt | llm
+
+    ret = llm_chain.stream({"query": "你是谁？"})
+    for token in ret:
+        print(token, end="", flush=True)
+    # tools = [KGRetrieveTool(llm), BaseModel(llm)]
+    # agent = IntentAgent(llm=llm, tools=tools)
+    # query = "李白写过哪些诗"
+    # tool = agent.choose_tools(query)
+    # print(tool.name)
+    # print(tool.run(query))
+    #
+    # query = "后天是周末吗"
+    # tool = agent.choose_tools(query)
+    # print(tool.name)
+    # print(tool.run(query))
 
     # query = "分众传媒的实际控制人是谁"
     # tool = agent.choose_tools(query)

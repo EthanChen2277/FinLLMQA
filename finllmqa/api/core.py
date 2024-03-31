@@ -22,3 +22,6 @@ STREAM_API_URL = LOCAL_API_URL + STREAM_API_PORT + '/autogen/stream'
 # login info
 STOCK_KG_USER = 'neo4j'
 STOCK_KG_PW = 'finglm-base-on-kg'
+
+# stream buffer
+STREAM_BUFFER = {}

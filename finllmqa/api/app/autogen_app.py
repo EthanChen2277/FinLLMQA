@@ -5,8 +5,7 @@ import threading
 from pydantic import ConfigDict, BaseModel
 
 from finllmqa.agent import autogen
-from finllmqa.agent.autogen.oai.client import stream_buffer
-from finllmqa.api.core import LLM_API_URL
+from finllmqa.api.core import STREAM_BUFFER, LLM_API_URL
 
 autogen_app = FastAPI()
 
@@ -69,20 +68,20 @@ def autogen_stream(prompt):
         groupchat=groupchat, llm_config=llm_config)
     admin.initiate_chat(
         manager, message=prompt)
-    stream_buffer[prompt]["stop"] = True
+    STREAM_BUFFER[prompt]["stop"] = True
 
 
 def remove_timeout_buffer():
-    for key in stream_buffer.copy():
-        diff = datetime.datetime.now() - stream_buffer[key]["time"]
+    for key in STREAM_BUFFER.copy():
+        diff = datetime.datetime.now() - STREAM_BUFFER[key]["time"]
         seconds = diff.total_seconds()
         # print(key + ": 已存在" + str(seconds) + "秒")
         if seconds > 10:
-            if stream_buffer[key]["stop"]:
-                del stream_buffer[key]
+            if STREAM_BUFFER[key]["stop"]:
+                del STREAM_BUFFER[key]
                 print(key + "：已被从缓存中移除")
             else:
-                stream_buffer[key]["stop"] = True
+                STREAM_BUFFER[key]["stop"] = True
                 print(key + "：已被标识为结束")
 
 
@@ -106,8 +105,8 @@ async def create_item(model: GetStream):
             "stop": True,
             "time": now.strftime("%Y-%m-%d %H:%M:%S")
         }
-    if stream_buffer.get(prompt) is None:
-        stream_buffer[prompt] = {"answer": [],
+    if STREAM_BUFFER.get(prompt) is None:
+        STREAM_BUFFER[prompt] = {"answer": [],
                                  "stop": False, "time": now}
         # 在线程中调用stream_chat
         sub_thread = threading.Thread(
@@ -115,13 +114,13 @@ async def create_item(model: GetStream):
         sub_thread.start()
     # 异步返回response
     time = now.strftime("%Y-%m-%d %H:%M:%S")
-    answer_list = stream_buffer[prompt]["answer"]
+    answer_list = STREAM_BUFFER[prompt]["answer"]
     # 如果stream_chat调用完成，给返回加一个停止词[stop]
-    print(stream_buffer)
+    print(STREAM_BUFFER)
     response = {
         "answer": answer_list,
         "status": 200,
-        "stop": stream_buffer[prompt]["stop"],
+        "stop": STREAM_BUFFER[prompt]["stop"],
         "time": time
     }
 
