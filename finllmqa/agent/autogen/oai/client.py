@@ -177,13 +177,12 @@ class OpenAIClient:
             full_function_call: Optional[Dict[str, Any]] = None
             full_tool_calls: Optional[List[Optional[Dict[str, Any]]]] = None
 
-            one_answer = ''
             # save one answer in global variable
             if agent_name != 'chat_manager':
                 STREAM_BUFFER[key]['answer'].append(
                     {
                         'name': agent_name,
-                        'response': one_answer})
+                        'response': ''})
             # Send the chat completion request to OpenAI's API and process the response in chunks
             for chunk in completions.create(**params):
                 if chunk.choices:
@@ -232,8 +231,7 @@ class OpenAIClient:
                         if content is not None:
                             if agent_name != 'chat_manager':
                                 STREAM_BUFFER[key]['time'] = datetime.now()
-                                one_answer += content
-                                STREAM_BUFFER[key]['answer'][-1]['response'] = one_answer
+                                STREAM_BUFFER[key]['answer'][-1]['response'] += content
                             print(content, end="", flush=True)
                             response_contents[choice.index] += content
                             completion_tokens += 1
