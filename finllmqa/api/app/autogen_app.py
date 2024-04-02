@@ -3,9 +3,12 @@ import uvicorn
 import datetime
 import threading
 from pydantic import ConfigDict, BaseModel
+from sse_starlette import EventSourceResponse
 
 from finllmqa.agent import autogen
 from finllmqa.api.core import STREAM_BUFFER, LLM_API_URL
+
+global STREAM_BUFFER
 
 autogen_app = FastAPI()
 
@@ -86,46 +89,39 @@ def remove_timeout_buffer():
 
 
 @autogen_app.post("/autogen/stream")
-async def create_item(model: GetStream):
+async def get_autogen_stream_answer(model: GetStream):
     # 删除过期的buffer
     remove_timeout_buffer()
-    # 获取入参
-    prompt = model.prompt
     # 判断是否已在生成，只有首次才调stream_chat
     now = datetime.datetime.now()
-    if prompt == '你好':
-        return {
-            "answer": [
-                {
-                    "name": "chatglm3",
-                    "response": "您好，我是Chatglm3智体，基于Autogen构建，可以使用多个角色会话回答您在编程方面的问题。[stop]"
-                }
-            ],
-            "status": 200,
-            "stop": True,
-            "time": now.strftime("%Y-%m-%d %H:%M:%S")
-        }
-    if STREAM_BUFFER.get(prompt) is None:
-        STREAM_BUFFER[prompt] = {"answer": [],
-                                 "stop": False, "time": now}
+    # 获取入参
+    query = model.prompt
+    if STREAM_BUFFER.get(query) is None:
+        STREAM_BUFFER[query] = {"answer": [],
+                                "stop": False, "time": now}
         # 在线程中调用stream_chat
         sub_thread = threading.Thread(
-            target=autogen_stream, args=[prompt])
+            target=autogen_stream, args=[query])
         sub_thread.start()
-    # 异步返回response
-    time = now.strftime("%Y-%m-%d %H:%M:%S")
-    answer_list = STREAM_BUFFER[prompt]["answer"]
-    # 如果stream_chat调用完成，给返回加一个停止词[stop]
-    print(STREAM_BUFFER)
-    response = {
-        "answer": answer_list,
-        "status": 200,
-        "stop": STREAM_BUFFER[prompt]["stop"],
-        "time": time
-    }
+    response_generator = start_autogen(query=query)
+    return EventSourceResponse(response_generator, media_type='text/event-stream')
 
-    return response
 
+async def start_autogen(query: str):
+    while not STREAM_BUFFER[query]['stop']:
+        now = datetime.datetime.now()
+        # 异步返回response
+        time = now.strftime("%Y-%m-%d %H:%M:%S")
+        answer_list = STREAM_BUFFER[query]["answer"]
+        # 如果stream_chat调用完成，给返回加一个停止词[stop]
+        print(STREAM_BUFFER)
+        response = {
+            "answer": answer_list,
+            "status": 200,
+            "stop": STREAM_BUFFER[query]["stop"],
+            "time": time
+        }
+        yield response
 
 if __name__ == '__main__':
     uvicorn.run(autogen_app, host='0.0.0.0', port=8006, workers=1)

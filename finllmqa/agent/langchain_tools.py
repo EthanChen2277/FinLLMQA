@@ -13,10 +13,9 @@ import asyncio
 from copy import deepcopy
 
 import requests
-from langchain.tools import BaseTool
 from langchain.base_language import BaseLanguageModel
 from langchain_core.prompts import PromptTemplate
-from langchain.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
 from langchain.chains.llm import LLMChain
 
 from finllmqa.kg.search import AnswerSearcher
@@ -36,6 +35,7 @@ class BaseModel(ABC):
                                   api_key='null')
         else:
             self.llm = llm
+        self.llm_chain = None
         self.name = "其它"
         self.description = '''
         无需任何信息，直接回答
@@ -89,9 +89,11 @@ class BaseModel(ABC):
     def send_query_to_autogen(query):
         try:
             res = requests.post(url=STREAM_API_URL, json={'prompt': query})
-            return {'msg': res.content, 'status': res.status_code}
+            res_dc = {'msg': res.content, 'status': res.status_code}
         except Exception as e:
-            return {'msg': e, 'status': -1}
+            res_dc = {'msg': e, 'status': -1}
+        logging.info(f'query: {query} send_query_to_autogen result: {res_dc}')
+        return res_dc
 
     # 异步调用组件
     def get_stream_response(self, query):
@@ -166,34 +168,54 @@ class IETool(BaseModel):
         '''
         self._template = """
         你是一名金融信息抽取员，需要从问题中抽取出["公司", "行业", "时间", "意图"]，抽取的内容必须是问题中的字段，不能乱编，
-        并且必须以'"公司": [], "行业": [], "时间": [], "意图": []'的形式回复。
+        并且必须以'*公司*: [], *行业*: [], *时间*: [], *意图*: []'的形式回复。
 
         举例1：
             问题：2019年药明康德衍生金融资产和其他非流动金融资产分别是多少元?
-            信息抽取：'"公司": ['药明康德'], "行业": [], "时间": ['2019年'], "意图": ['衍生金融资产', '其他非流动金融资产']'
+            信息抽取：*公司*: [药明康德], *行业*: [], *时间*: [2019年], *意图*: [衍生金融资产, 其他非流动金融资产]
 
         举例2：
             问题：上海中谷物流股份有限公司2020年营业收入是多少元?
-            信息抽取：'"公司": ['上海中谷物流股份有限公司'], "行业": [], "时间": ['2020年'], "意图": ['营业收入']'
+            信息抽取：*公司*: [上海中谷物流股份有限公司], *行业*: [], *时间*: [2020年], *意图*: [营业收入]
 
         举例3：
             问题：激光行业近三年的发展如何？
-            信息抽取：'"公司": [], "行业": ['激光行业'], "时间": ['最近三年'], "意图": ['发展']'
+            信息抽取：*公司*: [], *行业*: [激光行业], *时间*: [最近三年], *意图*: [发展]
 
         举例4：
             问题：证券行业最近的发展如何？
-            信息抽取：'"公司": [], "行业": ['证券行业'], "时间": ['最近一年'], "意图": ['发展']'
+            信息抽取：*公司*: [], *行业*: [证券行业], *时间*: [最近一年], *意图*: [发展]
 
         举例5：
             问题：分众传媒与新潮传媒谁的利润率更高？
-            信息抽取：'"公司": ['分众传媒', '新潮传媒'], "行业": [], "时间": [], "意图": ['利润率']'
+            信息抽取：*公司*: [分众传媒, 新潮传媒], *行业*: [], *时间*: [], *意图*: [利润率]
 
         举例6：
             问题：广发证券 东方财富证券 东方证券的基本面哪一个更好？
-            信息抽取：'"公司": ['广发证券', '东方财富证券'， '东方证券'], "行业": [], "时间": [], "意图": ['基本面']'
+            信息抽取：*公司*: [广发证券, 东方财富证券， 东方证券], *行业*: [], *时间*: [], *意图*: [基本面]
 
         问题：{query}
         信息抽取："""
+
+    @staticmethod
+    def process_information_extraction_result(text: str):
+        # 使用正则表达式匹配并提取信息
+        match = re.search(r"\*公司\*: \[(.*?)\], \*行业\*: \[(.*?)\], \*时间\*: \[(.*?)\], \*意图\*: \[(.*?)\]", text)
+        if match:
+            company = match.group(1)
+            industry = match.group(2)
+            time = match.group(3)
+            intent = match.group(4)
+
+            ie_dict = {
+                '公司': [company],
+                '行业': [industry],
+                '时间': [time],
+                '意图': [intent]
+            }
+        else:
+            ie_dict = {}
+        return ie_dict
 
 
 class TimeResolveTool(BaseModel):
@@ -261,6 +283,7 @@ class KGRetrieveTool(BaseModel):
         self.vec_search_params = {"metric_type": "L2", "params": {"nprobe": 1024}}
 
     def get_kg_query_result(self, ent_dict):
+        logging.info(f'start querying kg with ent_dict: {ent_dict}')
         query_res = self.graph_searcher.search_main(ent_dict=ent_dict)
         return query_res
 
@@ -433,7 +456,11 @@ class KGRetrieveTool(BaseModel):
     def get_question_analysis(self, query):
         ie = IETool(self.llm)
         tr = TimeResolveTool(self.llm)
-        ie_res = json.loads('{' + ie.run(query) + '}')
+        ie_res = ie.run(query)
+        ie_res = ie.process_information_extraction_result(text=ie_res)
+        logging.info(f'processed ie result: {ie_res}')
+        if not ie_res:
+            return None
         question_dict = {
             '主体': {
                 '股票': []
@@ -495,7 +522,7 @@ class KGRetrieveTool(BaseModel):
     def editing_distance(word1, word2):
         try:
             m, n = len(word1), len(word2)
-        except:
+        except Exception:
             return float('inf')
 
         if m == 0 or n == 0:
@@ -601,13 +628,13 @@ class CreateSchemeTool(BaseModel):
 
         举例：
         问题：葛洲坝是否值得投资？
-        方案生成：['*','*','*']
+        方案生成：['财务分析','行业地位分析','风险评估']
 
-        问题：人工智能行业发展前景如何？
-        方案生成：['*','*','*']
+        问题：A股最近表现如何？
+        方案生成：['市场表现指标','宏观经济因素','行业动态', '投资者情绪']
 
         问题：分众传媒和新潮传媒哪个更好？
-        方案生成：['*','*','*']
+        方案生成：['市场地位和品牌影响力','财务状况和盈利能力','业务模式和创新能力']
 
         问题：{query}
         方案生成："""
@@ -726,6 +753,7 @@ class FinInvestmentQA(BaseModel):
 
         self.kwargs = kwargs
         self.args = args
+        self.angle = '原问题'
         # 分别存储以知识图谱和语言模型作为知识支撑的答案生成调用
         self.knowledge_analysis_pool = []
         self.pretrain_inference_pool = []
@@ -738,7 +766,7 @@ class FinInvestmentQA(BaseModel):
                 query_res = self.kg_retriever.get_kg_query_result(ent_dict=question_dict)
                 ka_tool = KnowledgeAnalysisTool()
                 ka_tool.reference = {
-                    'content': query_res,
+                    'data': query_res,
                     'query': query
                     }
                 ka_tool.get_str_prompt()
@@ -746,7 +774,11 @@ class FinInvestmentQA(BaseModel):
                 self.knowledge_analysis_pool.append(ka_tool)
         else:
             self.reference = None
+            return
         angel_intent_dict = GetAttributeTool(self.llm).run(query)
+        if not angel_intent_dict:
+            self.reference = None
+            return
         for angle, intent_ls in angel_intent_dict.items():
             new_question_dict = deepcopy(question_dict)
             for intent in intent_ls:
@@ -759,24 +791,25 @@ class FinInvestmentQA(BaseModel):
                 matched_intent_list = matched_attr_list + matched_ent_list
                 new_question_dict['意图'] += matched_intent_list
             if len(new_question_dict['意图']) > 0:
-                query_res = self.kg_retriever.get_kg_query_result(question_dict)
-                ka_tool = KnowledgeAnalysisTool()
-                ka_tool.reference = {
-                    'content': query_res,
-                    'query': query
-                }
-                ka_tool.get_str_prompt()
-                ka_tool.angle = angle
-                self.knowledge_analysis_pool.append(ka_tool)
-            else:
-                pi_tool = PretrainInferenceTool()
-                pi_tool.reference = {
-                    'angle': angle,
-                    'query': query
-                }
-                pi_tool.get_str_prompt()
-                pi_tool.angle = angle
-                self.pretrain_inference_pool.append(pi_tool)
+                query_res = self.kg_retriever.get_kg_query_result(new_question_dict)
+                if query_res:
+                    ka_tool = KnowledgeAnalysisTool()
+                    ka_tool.reference = {
+                        'data': query_res,
+                        'query': query
+                    }
+                    ka_tool.get_str_prompt()
+                    ka_tool.angle = angle
+                    self.knowledge_analysis_pool.append(ka_tool)
+                    continue
+            pi_tool = PretrainInferenceTool()
+            pi_tool.reference = {
+                'angle': angle,
+                'query': query
+            }
+            pi_tool.get_str_prompt()
+            pi_tool.angle = angle
+            self.pretrain_inference_pool.append(pi_tool)
             # 图表数据写入redis
             # 另起线程去执行
             # logging.info("开始查询图表数据")

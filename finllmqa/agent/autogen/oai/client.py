@@ -55,6 +55,7 @@ if not logger.handlers:
 LEGACY_DEFAULT_CACHE_SEED = 41
 LEGACY_CACHE_DIR = ".cache"
 OPEN_API_BASE_URL_PREFIX = "https://api.openai.com"
+global STREAM_BUFFER
 
 
 class ModelClient(Protocol):

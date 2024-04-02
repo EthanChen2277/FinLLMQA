@@ -1,15 +1,16 @@
 import streamlit as st
-import requests
 
 from finllmqa.agent.langchain_tools import *
 
 
-def display_chat_block(query):
+def display_chat_block(agent):
     with st.chat_message(name='autogen', avatar='assistant'):
         message_placeholder = st.empty()
+    query = agent.prompt
+    angle = agent.angle
     json_res = {"stop": False}
     display_answer_num = 0
-    prev_answer = full_answer = ''
+    prev_answer = full_answer = f'分析角度: {angle} \n\n'
     while not json_res['stop']:
         json_res = requests.post(url=STREAM_API_URL,
                                  json={'prompt': query}).json()
@@ -60,8 +61,8 @@ if user_input:
     kg_matched_flag = tool.run(query=user_input)
     if kg_matched_flag:
         for ka_tool in tool.knowledge_analysis_pool:
-            display_chat_block(query=ka_tool.prompt)
+            display_chat_block(agent=ka_tool)
         for pi_tool in tool.pretrain_inference_pool:
-            display_chat_block(query=pi_tool.prompt)
+            display_chat_block(agent=pi_tool)
     else:
-        display_chat_block(query=tool.prompt)
+        display_chat_block(agent=tool)
