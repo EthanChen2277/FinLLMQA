@@ -18,9 +18,10 @@ from langchain_core.prompts import PromptTemplate
 from langchain_community.chat_models import ChatOpenAI
 from langchain.chains.llm import LLMChain
 
+from finllmqa.agent.autogen_tools import get_autogen_stream_answer
 from finllmqa.kg.search import AnswerSearcher
 from finllmqa.api.embedding import get_embedding
-from finllmqa.api.core import CHAT_API_URL, STREAM_API_URL, STREAM_BUFFER, LLM_API_URL
+from finllmqa.api.core import CHAT_API_URL, LLM_API_URL
 from finllmqa.vector_db.construct import Milvus
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -85,15 +86,10 @@ class BaseModel(ABC):
                          f"Q: {query} LLM Answer: {resp}.")
         return resp
 
-    @staticmethod
-    def send_query_to_autogen(query):
-        try:
-            res = requests.post(url=STREAM_API_URL, json={'prompt': query})
-            res_dc = {'msg': res.content, 'status': res.status_code}
-        except Exception as e:
-            res_dc = {'msg': e, 'status': -1}
-        logging.info(f'query: {query} send_query_to_autogen result: {res_dc}')
-        return res_dc
+    # def send_query_to_autogen(self):
+    #     query = self.prompt
+    #     response = get_autogen_stream_answer(query=query)
+    #     logging.info(f'query: {query} send_query_to_autogen result: {response}')
 
     # 异步调用组件
     def get_stream_response(self, query):
@@ -819,13 +815,13 @@ class FinInvestmentQA(BaseModel):
 
     def run(self, query):
         self.get_reference(query=query)
-        kg_matched_flag = False
+        kg_matched_flag = True
         if self.reference is None:
             self.reference = {
                 'query': query
             }
             self.get_str_prompt()
-            self.send_query_to_autogen(query=self.prompt)
+            kg_matched_flag = False
             # STREAM_BUFFER[query]['time'] = datetime.now()
             # STREAM_BUFFER[query]['answer'].append(
             #     {
@@ -839,14 +835,6 @@ class FinInvestmentQA(BaseModel):
             #         STREAM_BUFFER[query]['time'] = datetime.now()
             #         STREAM_BUFFER[query]['answer'][-1]['response'] += content
             # return
-        else:
-            for ka_tool in self.knowledge_analysis_pool:
-                query = ka_tool.prompt
-                ka_tool.send_query_to_autogen(query=query)
-            for pi_tool in self.pretrain_inference_pool:
-                query = pi_tool.prompt
-                pi_tool.send_query_to_autogen(query=query)
-            kg_matched_flag = True
         return kg_matched_flag
         # answer_dict = asyncio.run(self.generate_multi_reply_concurrently(query, question_analysis))
         # if answer_dict:

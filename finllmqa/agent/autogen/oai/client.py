@@ -7,7 +7,6 @@ import logging
 import inspect
 import uuid
 
-from finllmqa.api.core import STREAM_BUFFER
 from flaml.automl.logger import logger_formatter
 
 from pydantic import BaseModel
@@ -52,10 +51,24 @@ if not logger.handlers:
     _ch.setFormatter(logger_formatter)
     logger.addHandler(_ch)
 
-LEGACY_DEFAULT_CACHE_SEED = 41
+LEGACY_DEFAULT_CACHE_SEED = None
 LEGACY_CACHE_DIR = ".cache"
 OPEN_API_BASE_URL_PREFIX = "https://api.openai.com"
-global STREAM_BUFFER
+STREAM_BUFFER = {}
+
+
+def remove_timeout_buffer():
+    for key in STREAM_BUFFER.copy():
+        diff = datetime.now() - STREAM_BUFFER[key]["time"]
+        seconds = diff.total_seconds()
+        print(key + ": 已存在" + str(seconds) + "秒")
+        if seconds > 10:
+            if STREAM_BUFFER[key]["stop"]:
+                del STREAM_BUFFER[key]
+                print(key + "：已被从缓存中移除")
+            else:
+                STREAM_BUFFER[key]["stop"] = True
+                print(key + "：已被标识为结束")
 
 
 class ModelClient(Protocol):
@@ -169,7 +182,12 @@ class OpenAIClient:
             finish_reasons = [""] * params.get("n", 1)
             completion_tokens = 0
             key = user_input
-            STREAM_BUFFER[key]['time'] = datetime.now()
+            if key not in STREAM_BUFFER.keys():
+                STREAM_BUFFER[key] = {
+                    'answer': '',
+                    'time': datetime.now(),
+                    'stop': False
+                }
 
             # Set the terminal text color to green
             print("\033[32m", end="")
@@ -180,10 +198,7 @@ class OpenAIClient:
 
             # save one answer in global variable
             if agent_name != 'chat_manager':
-                STREAM_BUFFER[key]['answer'].append(
-                    {
-                        'name': agent_name,
-                        'response': ''})
+                STREAM_BUFFER[key]['answer'] += f'**{agent_name}** \n\n'
             # Send the chat completion request to OpenAI's API and process the response in chunks
             for chunk in completions.create(**params):
                 if chunk.choices:
@@ -232,20 +247,21 @@ class OpenAIClient:
                         if content is not None:
                             if agent_name != 'chat_manager':
                                 STREAM_BUFFER[key]['time'] = datetime.now()
-                                STREAM_BUFFER[key]['answer'][-1]['response'] += content
+                                STREAM_BUFFER[key]['answer'] += content
                             print(content, end="", flush=True)
                             response_contents[choice.index] += content
                             completion_tokens += 1
                         else:
                             print('No valid content!')
                             pass
-
+            if agent_name != 'chat_manager':
+                STREAM_BUFFER[key]['answer'] += '\n\n'
             # Reset the terminal text color
             print("\033[0m\n")
 
             # Prepare the final ChatCompletion object based on the accumulated data
-            model = chunk.model.replace("gpt-35", "gpt-3.5")  # hack for Azure API
-            model = chunk.model.replace("chatglm3-6b", "gpt-4")  # hack for chatglm3-6b
+            # model = chunk.model.replace("gpt-35", "gpt-3.5")  # hack for Azure API
+            model = chunk.model.replace("chatglm3-6b", "gpt-4-0613")  # hack for chatglm3-6b
             prompt_tokens = count_token(params["messages"], model)
             response = ChatCompletion(
                 id=chunk.id,

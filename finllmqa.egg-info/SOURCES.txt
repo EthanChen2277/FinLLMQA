@@ -10,6 +10,7 @@ finllmqa.egg-info/dependency_links.txt
 finllmqa.egg-info/requires.txt
 finllmqa.egg-info/top_level.txt
 finllmqa/agent/__init__.py
+finllmqa/agent/autogen_tools.py
 finllmqa/agent/langchain_tools.py
 finllmqa/agent/autogen/__init__.py
 finllmqa/agent/autogen/_pydantic.py
@@ -90,7 +91,6 @@ finllmqa/api/__init__.py
 finllmqa/api/core.py
 finllmqa/api/embedding.py
 finllmqa/api/app/__init__.py
-finllmqa/api/app/autogen_app.py
 finllmqa/api/app/llm_app.py
 finllmqa/api/app/streamlit_app.py
 finllmqa/api/app/utils.py
