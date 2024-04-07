@@ -5,9 +5,11 @@ from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.base.llms.base import BaseLLM
 from llama_index.llms.openai import OpenAI
 from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.core import VectorStoreIndex
 
 from finllmqa.api.core import LLM_API_URL
 
+VectorStoreIndex().as_query_engine()
 
 class LLamaIndexTool(ABC):
     def __init__(self,

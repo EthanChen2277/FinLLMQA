@@ -1,21 +1,26 @@
 import os
+from typing import Dict
+
+from llama_index.core.base.base_query_engine import BaseQueryEngine
 from tqdm import tqdm
 import openai
-from evaluators.evaluator import Evaluator
+from evaluator import Evaluator
 from time import sleep
 import re
 
-class LLMEvaluator(Evaluator):
-    def __init__(self, choices, k, api_key,model_name):
-        super().__init__(choices, model_name, k)
-        openai.api_key = api_key
 
-    def format_example(self,line,include_answer=True,cot=False):
+class QueryEngineEvaluator(Evaluator):
+    def __init__(self, query_engine: BaseQueryEngine, prompt_dict: Dict, choices, k, model_name):
+        super().__init__(choices, model_name, k)
+        self.query_engine = query_engine
+        self.prompt_dict = prompt_dict
+
+    def format_example(self, line, include_answer=True, cot=False):
         example=line['question']
         for choice in self.choices:
-            example+=f'\n{choice}. {line[f"{choice}"]}'
+            example += f'\n{choice}. {line[f"{choice}"]}'
 
-        example+='\n答案：'
+        example += '\n答案：'
         if include_answer:
             if cot:
                 ans=line["answer"]
@@ -39,24 +44,26 @@ class LLMEvaluator(Evaluator):
                 return [
                     {"role":"user","content":example},
                 ]
+
     def generate_few_shot_prompt(self, subject, dev_df, cot=False):
         prompt=[
             {
-                "role":"system",
-                "content":f"你是一个中文人工智能助手，以下是中国关于{subject}考试的单项选择题，请选出其中的正确答案。"
+                "role": "system",
+                "content": f"你是一个中文人工智能助手，以下是中国关于{subject}考试的单项选择题，请选出其中的正确答案。"
             }
         ]
-        k=self.k
-        if self.k==-1:
-            k=dev_df.shape[0]
+        k = self.k
+        if self.k == -1:
+            k = dev_df.shape[0]
         for i in range(k):
             tmp=self.format_example(dev_df.iloc[i,:],include_answer=True,cot=cot)
-            if i==0:
-                tmp[0]["content"]=f"以下是中国关于{subject}考试的单项选择题，请选出其中的正确答案。\n\n"+tmp[0]["content"]
-            prompt+=tmp
+            if i == 0:
+                tmp[0]["content"] = f"以下是中国关于{subject}考试的单项选择题，请选出其中的正确答案。\n\n"+tmp[0]["content"]
+            prompt += tmp
         return prompt
 
-    def eval_subject(self, subject_name, test_df, dev_df=None, few_shot=False, save_result_dir=None,cot=False):
+    def eval_subject(self, subject_name, test_df, dev_df=None, few_shot=False,
+                     save_result_dir=None, cot=False):
         correct_num = 0
         all_answer = {}
         if save_result_dir:
@@ -79,7 +86,7 @@ class LLMEvaluator(Evaluator):
                 full_prompt[-1]["content"]=f"以下是中国关于{subject_name}考试的单项选择题，请选出其中的正确答案。\n\n"+full_prompt[-1]["content"]
             response=None
             timeout_counter=0
-            while response is None and timeout_counter<=30:
+            while response is None and timeout_counter <= 30:
                 try:
                     sleep(1.5)
                     response = openai.ChatCompletion.create(
@@ -93,11 +100,11 @@ class LLMEvaluator(Evaluator):
                     print(msg)
                     sleep(5)
                     continue
-            if response==None:
-                response_str=""
+            if response is None:
+                response_str = ""
             else:
                 response_str = response['choices'][0]['message']['content']
-            #print(response_str)
+            # print(response_str)
             if cot:
               if not few_shot:
                 response_str=response_str.strip()
@@ -200,3 +207,12 @@ class LLMEvaluator(Evaluator):
             else:
                 break
         return ans_list
+
+    def get_llama_index_query_result(self, query_engine: BaseQueryEngine, prompt_dict: Dict):
+        query_engine.update_prompts(prompts_dict=prompt_dict)
+        try:
+            response_str = query_engine.query('')
+            return response_str
+        except:
+            return ''
+
