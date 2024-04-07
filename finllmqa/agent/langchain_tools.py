@@ -1,9 +1,7 @@
 import ast
 import collections
-import json
 import math
 import re
-import threading
 from abc import ABC
 import logging
 import pymysql
@@ -12,22 +10,20 @@ import pandas as pd
 import asyncio
 from copy import deepcopy
 
-import requests
 from langchain.base_language import BaseLanguageModel
 from langchain_core.prompts import PromptTemplate
 from langchain_community.chat_models import ChatOpenAI
 from langchain.chains.llm import LLMChain
 
-from finllmqa.agent.autogen_tools import get_autogen_stream_answer
 from finllmqa.kg.search import AnswerSearcher
 from finllmqa.api.embedding import get_embedding
-from finllmqa.api.core import CHAT_API_URL, LLM_API_URL
+from finllmqa.api.core import  LLM_API_URL
 from finllmqa.vector_db.construct import Milvus
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-class BaseModel(ABC):
+class LangChainTool(ABC):
     def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True, *args, **kwargs):
         if llm is None:
             self.llm = ChatOpenAI(model="chatglm3",
@@ -106,7 +102,7 @@ class BaseModel(ABC):
         return chunks
 
 
-class IntentAgent(BaseModel):
+class IntentAgent(LangChainTool):
     def __init__(self, tools: list, llm: BaseLanguageModel = None, verbose: bool = True, *args, **kwargs):
         super().__init__(llm, verbose, *args, **kwargs)
         self.name = "意图识别"
@@ -155,7 +151,7 @@ class IntentAgent(BaseModel):
         return self.tools[-1]
 
 
-class IETool(BaseModel):
+class IETool(LangChainTool):
     def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True, *args, **kwargs):
         super().__init__(llm, verbose, *args, **kwargs)
         self.name = "金融信息抽取"
@@ -214,7 +210,7 @@ class IETool(BaseModel):
         return ie_dict
 
 
-class TimeResolveTool(BaseModel):
+class TimeResolveTool(LangChainTool):
     def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True):
         super().__init__(llm, verbose)
         self.name = "时间解析"
@@ -252,7 +248,7 @@ class TimeResolveTool(BaseModel):
         )
 
 
-class KGRetrieveTool(BaseModel):
+class KGRetrieveTool(LangChainTool):
     def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True, *args, **kwargs):
         super().__init__(llm, verbose, *args, **kwargs)
         self.name = "知识图谱检索"
@@ -612,7 +608,7 @@ class KGRetrieveTool(BaseModel):
         return f'{name}从{start_date}到{end_date}的技术指标如下: \n {df.to_markdown()}'
 
 
-class CreateSchemeTool(BaseModel):
+class CreateSchemeTool(LangChainTool):
     def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True):
         super().__init__(llm, verbose)
         self.name = "方案生成"
@@ -636,7 +632,7 @@ class CreateSchemeTool(BaseModel):
         方案生成："""
 
 
-class GetAttributeTool(BaseModel):
+class GetAttributeTool(LangChainTool):
     def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True, *args, **kwargs):
         super().__init__(llm, verbose, *args, **kwargs)
         self.name = "关注指标"
@@ -700,7 +696,7 @@ class GetAttributeTool(BaseModel):
         return response
 
 
-class KnowledgeAnalysisTool(BaseModel):
+class KnowledgeAnalysisTool(LangChainTool):
     def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True):
         super().__init__(llm, verbose)
         self.name = "数据分析"
@@ -720,7 +716,7 @@ class KnowledgeAnalysisTool(BaseModel):
         self.angle = ''
 
 
-class PretrainInferenceTool(BaseModel):
+class PretrainInferenceTool(LangChainTool):
     def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True):
         super().__init__(llm, verbose)
         self.name = "预训练推理"
@@ -735,7 +731,7 @@ class PretrainInferenceTool(BaseModel):
         self.angle = ''
 
 
-class FinInvestmentQA(BaseModel):
+class FinInvestmentQA(LangChainTool):
     def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True, *args, **kwargs):
         super().__init__(llm, verbose, *args, **kwargs)
         self.name = "金融投资"
@@ -868,7 +864,7 @@ def handle_answer(text: str):
     #     max_tokens=8096,
     #     top_p=0.9
     # )
-    # tools = [KGRetrieveTool(llm), BaseModel(llm)]
+    # tools = [KGRetrieveTool(llm), LangChainTool(llm)]
     # agent = IntentAgent(llm=llm, tools=tools)
     # query = "李白写过哪些诗"
     # tool = agent.choose_tools(query)
