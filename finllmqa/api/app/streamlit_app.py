@@ -3,11 +3,11 @@ import streamlit as st
 
 from finllmqa.agent.autogen.oai.client import remove_timeout_buffer
 from finllmqa.agent.autogen_tools import get_autogen_stream_answer
-from finllmqa.agent.langchain_tools import BaseModel, FinInvestmentQA
+from finllmqa.agent.langchain_tools import LangChainTool, FinInvestmentQA
 
 
-def display_chat_block(agent: BaseModel | List[BaseModel]):
-    if isinstance(agent, BaseModel):
+def display_chat_block(agent: LangChainTool | List[LangChainTool]):
+    if isinstance(agent, LangChainTool):
         agent_pool = [agent]
     else:
         agent_pool = agent
@@ -17,20 +17,37 @@ def display_chat_block(agent: BaseModel | List[BaseModel]):
             message_placeholder = st.empty()
             place_holder_pool.append(message_placeholder)
     display_agent_pool = agent_pool
-    finished_agent_index_pool = []
-    while len(display_agent_pool) != len(finished_agent_index_pool):
-        for i in range(len(display_agent_pool)):
-            if i not in finished_agent_index_pool:
-                display_agent = display_agent_pool[i]
-                place_holder = place_holder_pool[i]
-                query = display_agent.prompt
-                # angle = display_agent.angle
-                # place_holder.markdown(f'分析角度: {angle} \n\n')
-                answer = get_autogen_stream_answer(query=query)
-                if answer == '[DONE]':
-                    finished_agent_index_pool.append(i)
+    display_ans_generator_pool = [agent.get_stream_response() for agent in display_agent_pool]
+    display_answer_ls = ['' for i in range(len(display_ans_generator_pool))]
+    finished_agent_index_ls = []
+    while len(display_ans_generator_pool) != len(finished_agent_index_ls):
+        for i, answer_generator in enumerate(display_ans_generator_pool):
+            if i not in finished_agent_index_ls:
+                try:
+                    display_answer_ls[i] += next(answer_generator).content
+                    place_holder = place_holder_pool[i]
+                    place_holder.markdown(display_answer_ls[i])
+                    # angle = display_agent.angle
+                    # place_holder.markdown(f'分析角度: {angle} \n\n')
+                except StopIteration:
+                    finished_agent_index_ls.append(i)
                     continue
-                place_holder.markdown(answer)
+
+
+# def get_autogen_answer(display_agent, place_holder):
+#     while len(display_agent_pool) != len(finished_agent_index_pool):
+#         for i in range(len(display_agent_pool)):
+#             if i not in finished_agent_index_pool:
+#                 display_agent = display_agent_pool[i]
+#                 place_holder = place_holder_pool[i]
+#                 query = display_agent.prompt
+#                 # angle = display_agent.angle
+#                 # place_holder.markdown(f'分析角度: {angle} \n\n')
+#                 answer = get_autogen_stream_answer(query=query)
+#                 if answer == '[DONE]':
+#                     finished_agent_index_pool.append(i)
+#                     continue
+#                 place_holder.markdown(answer)
 
 
 def main():
