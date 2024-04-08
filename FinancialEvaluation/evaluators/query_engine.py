@@ -10,6 +10,7 @@ from time import sleep
 import re
 
 from llama_index.core.base.base_query_engine import BaseQueryEngine
+from llama_index.core import KnowledgeGraphIndex
 
 
 class QueryEngineEvaluator(Evaluator):
