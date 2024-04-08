@@ -11,7 +11,7 @@ import asyncio
 from copy import deepcopy
 
 from langchain.base_language import BaseLanguageModel
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 from langchain_community.chat_models import ChatOpenAI
 from langchain.chains.llm import LLMChain
 
@@ -40,7 +40,8 @@ class LangChainTool(ABC):
         self._template = """
         问题：{query}
         答案："""
-        self.prompt = None
+        self.prompt_template = None
+        self.prompt_str = None
         self.reference = dict()
         self.verbose = verbose
         self.progress_func = kwargs.get('progress_func')
@@ -48,17 +49,21 @@ class LangChainTool(ABC):
         # self.progress(progress_text='开始分析问题')
 
     def get_prompt_template(self):
-        self.prompt = PromptTemplate.from_template(self._template)
+        self.prompt_template = PromptTemplate.from_template(self._template)
 
     def get_str_prompt(self):
         self.get_prompt_template()
-        self.prompt = self.prompt.format(**self.reference)
+        self.prompt_str = self.prompt_template.format(**self.reference)
 
     def get_reference(self, query):
         self.reference = dict()
 
     def get_llm_chain(self):
-        self.llm_chain = LLMChain(llm=self.llm, prompt=self.prompt, verbose=self.verbose)
+        self.llm_chain = LLMChain(llm=self.llm, prompt=self.prompt_template, verbose=self.verbose)
+
+    def get_chat_llm_chain(self):
+        chat_prompt = ChatPromptTemplate.from_messages([('human', self.prompt_str)])
+        self.llm_chain = chat_prompt | self.llm
 
     def progress(self, *args, **kwargs):
         """
@@ -73,8 +78,10 @@ class LangChainTool(ABC):
         self.get_prompt_template()
         self.get_llm_chain()
         self.progress(progress_text='调用LLM')
+        if 'query' not in self.reference.keys():
+            assert query is not None, 'query must be given when not included in self reference'
+            self.reference.update({'query': query})
         resp = self.llm_chain.predict(
-            query=query,
             **self.reference
         )
         if self.verbose:
@@ -88,17 +95,18 @@ class LangChainTool(ABC):
     #     logging.info(f'query: {query} send_query_to_autogen result: {response}')
 
     # 异步调用组件
-    def get_stream_response(self, query):
+    def get_stream_response(self, query=None):
         # 将回答的问题开启流式输出
         self.llm.streaming = True
-        self.get_llm_chain()
+        if 'query' not in self.reference.keys():
+            assert query is not None, 'query must be given when not included in self reference'
+            self.reference.update({'query': query})
+        self.get_str_prompt()
+        self.get_chat_llm_chain()
         if self.verbose:
             logging.info(f"Tool's name is {self.name}. Its reference is {self.reference}.")
         self.progress(progress_text='调用LLM')
-        chunks = self.llm_chain.stream(
-            query=query,
-            **self.reference
-        )
+        chunks = self.llm_chain.stream({})
         return chunks
 
 
@@ -138,6 +146,7 @@ class IntentAgent(LangChainTool):
     def get_reference(self, query):
         # self.progress(progress_text=f'')
         self.reference = dict(
+            query=query,
             intents=[tool.name for tool in self.tools]
         )
 
@@ -244,6 +253,7 @@ class TimeResolveTool(LangChainTool):
 
     def get_reference(self, query):
         self.reference = dict(
+            query=query,
             date=datetime.now().strftime("%Y年%m月%d日")
         )
 
