@@ -10,8 +10,8 @@ from finllmqa.agent.langchain_tools import KGRetrieverTool, KnowledgeAnalysisToo
 
 
 class FinInvestmentQA(LangChainTool):
-    def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True):
-        super().__init__(llm, verbose)
+    def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True, *args, **kwargs):
+        super().__init__(llm, verbose, *args, **kwargs)
         self.name = "金融投资"
         self.description = '''
         金融投资类问答Agent
@@ -41,11 +41,11 @@ class FinInvestmentQA(LangChainTool):
                 self.knowledge_analysis_pool.append(ka_tool)
         else:
             self.reference = None
-            return
+            return False
         angel_intent_dict = GetAttributeTool(self.llm).run(query)
         if not angel_intent_dict:
             self.reference = None
-            return
+            return False
         for angle, intent_ls in angel_intent_dict.items():
             new_question_dict = deepcopy(question_dict)
             for intent in intent_ls:
@@ -77,16 +77,15 @@ class FinInvestmentQA(LangChainTool):
             pi_tool.get_str_prompt()
             pi_tool.angle = angle
             self.pretrain_inference_pool.append(pi_tool)
+        return True
 
     def run(self, query):
-        self.get_reference(query=query)
-        kg_matched_flag = True
-        if self.reference is None:
+        kg_matched_flag = self.get_reference(query=query)
+        if not kg_matched_flag:
             self.reference = {
                 'query': query
             }
             self.get_str_prompt()
-            kg_matched_flag = False
         return kg_matched_flag
 
 

@@ -42,10 +42,9 @@ class LangChainTool(ABC):
         答案："""
         self.prompt_template = None
         self.prompt_str = None
-        self.reference = dict()
+        self.reference = None
         self.verbose = verbose
         self.progress_func = kwargs.get('progress_func')
-        self.progress_key = kwargs.get('progress_key')
         # self.progress(progress_text='开始分析问题')
 
     def get_prompt_template(self):
@@ -55,8 +54,8 @@ class LangChainTool(ABC):
         self.get_prompt_template()
         self.prompt_str = self.prompt_template.format(**self.reference)
 
-    def get_reference(self, query):
-        self.reference = dict()
+    def get_reference(self, **prompt_kwargs):
+        self.reference = prompt_kwargs
 
     def get_llm_chain(self):
         self.llm_chain = LLMChain(llm=self.llm, prompt=self.prompt_template, verbose=self.verbose)
@@ -65,19 +64,21 @@ class LangChainTool(ABC):
         chat_prompt = ChatPromptTemplate.from_messages([('human', self.prompt_str)])
         self.llm_chain = chat_prompt | self.llm
 
-    def progress(self, *args, **kwargs):
+    def progress(self, progress_text):
         """
         问题处理进度
         """
-        logging.debug(f'问题处理进度：{kwargs.get("progress_text")}')
+        logging.debug(f'问题处理进度：{progress_text}')
         if self.progress_func:
-            self.progress_func(self.progress_key, kwargs.get("progress_text"))
+            self.progress_func(progress_text)
 
-    def run(self, query):
-        self.get_reference(query)
+    def run(self, **prompt_kwargs):
+        if self.reference is None:
+            self.get_reference(**prompt_kwargs)
         self.get_prompt_template()
         self.get_llm_chain()
         self.progress(progress_text='调用LLM')
+        query = prompt_kwargs.get('query', None)
         if 'query' not in self.reference.keys():
             assert query is not None, 'query must be given when not included in self reference'
             self.reference.update({'query': query})
@@ -95,9 +96,12 @@ class LangChainTool(ABC):
     #     logging.info(f'query: {query} send_query_to_autogen result: {response}')
 
     # 异步调用组件
-    def get_stream_response(self, query=None):
+    def get_stream_response(self, **prompt_kwargs):
         # 将回答的问题开启流式输出
         self.llm.streaming = True
+        if self.reference is None:
+            self.get_reference(**prompt_kwargs)
+        query = prompt_kwargs.get('query', None)
         if 'query' not in self.reference.keys():
             assert query is not None, 'query must be given when not included in self reference'
             self.reference.update({'query': query})
@@ -266,7 +270,7 @@ class KGRetrieverTool(LangChainTool):
                              verbose=self.verbose)
         answer_dict = {}
         table_question_analysis = deepcopy(question_analysis)
-        data_schema_dict = GetAttributeTool(self.llm).run(query)
+        data_schema_dict = GetAttributeTool(self.llm).run(query=query)
         logging.info("回答问题的方案和数据库框架:{}".format(
             '\n'.join([f'{key} : {value}' for key, value in data_schema_dict.items()])))
         if not data_schema_dict:
@@ -408,7 +412,7 @@ class KGRetrieverTool(LangChainTool):
     def get_question_analysis(self, query):
         ie = IETool(self.llm)
         tr = TimeResolveTool(self.llm)
-        ie_res = ie.run(query)
+        ie_res = ie.run(query=query)
         ie_res = ie.process_information_extraction_result(text=ie_res)
         logging.info(f'processed ie result: {ie_res}')
         if not ie_res:
@@ -427,7 +431,7 @@ class KGRetrieverTool(LangChainTool):
                 return None
             question_dict['主体']['股票'] += matched_stock_list
         for extract_time in ie_res["时间"]:
-            process_time = ast.literal_eval(tr.run(extract_time))
+            process_time = ast.literal_eval(tr.run(query=extract_time))
             question_dict['时间'] += process_time
         for extract_intent in ie_res["意图"]:
             matched_attr_list = self.get_kg_matched_subject(subject=extract_intent,
@@ -627,7 +631,7 @@ class GetAttributeTool(LangChainTool):
         self.get_prompt_template()
         self.get_llm_chain()
         scheme_tool = CreateSchemeTool(self.llm)
-        scheme = scheme_tool.run(query)
+        scheme = scheme_tool.run(query=query)
         try:
             angle_list = ast.literal_eval(scheme)
         except:
@@ -664,8 +668,7 @@ class KnowledgeAnalysisTool(LangChainTool):
         根据已知数据分析问题
         '''
         self._template = """
-        请你根据以下给出的数据和问题，找出要回答这个问题可以利用哪些数据，并对已知的数据进行分析
-        请你给出具体的分析结果，不用回答问题
+        请你根据以下给出的数据和问题，对已知的数据进行深度分析并回答问题。
 
         已知数据：
         {data}
@@ -689,6 +692,21 @@ class PretrainInferenceTool(LangChainTool):
         问题：{query}
         问题分析："""
         self.angle = ''
+
+
+class SummarizeTool(LangChainTool):
+    def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True):
+        super().__init__(llm, verbose)
+        self.name = "总结答案"
+        self.description = '''
+        总结问题不同角度的答案
+        '''
+        self._template = """
+        对于给定的问题以及从不同角度进行分析的答案，请你对所有的答案给出总结
+
+        问题：{query}
+        不同角度答案：{total_answer}
+        总结："""
 
 
 def handle_answer(text: str):
