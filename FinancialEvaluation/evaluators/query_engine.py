@@ -17,13 +17,13 @@ class QueryEngineEvaluator(Evaluator):
         self.query_engine = query_engine
         self.prompt_dict = prompt_dict
 
-    def format_example(self, line, include_answer=True, cot=False):
-        example = line['question']
-        for choice in self.choices:
-            example += f'\n{choice}. {line[f"{choice}"]}'
+    def process_prompt(self, line, include_example=True, cot=False):
+        if include_example:
+            example = f"题目: {line['question']} \n 选项:"
+            for choice in self.choices:
+                example += f'\n{choice}. {line[f"{choice}"]}'
 
-        example += '\n答案：'
-        if include_answer:
+            example += '\n答案：'
             if cot:
                 ans = line["answer"]
                 content = "让我们一步一步思考，\n"+line["explanation"]+f"\n所以答案是{ans}。"
@@ -37,37 +37,43 @@ class QueryEngineEvaluator(Evaluator):
                     {"role": "assistant", "content": line["answer"]}
                 ]
         else:
+            content = '选项:'
+            for choice in self.choices:
+                content += f'\n{choice}. {line[f"{choice}"]}'
+            content += '\n答案:\n'
             if cot:
-                example += "\n让我们一步步思考,\n"
+                content += "\n让我们一步步思考\n"
                 return [
-                        {"role": "user", "content": example}
-                        ]
+                        {"role": "user", "content": content}
+                    ]
             else:
                 return [
-                    {"role": "user", "content": example},
+                    {"role": "user", "content": content},
                 ]
 
     def generate_few_shot_prompt(self, subject, dev_df, cot=False):
         prompt = [
             {
                 "role": "system",
-                "content": f"你是一个中文人工智能助手，以下是中国关于{subject}考试的单项选择题，请选出其中的正确答案。"
+                "content": f"你是一个中文人工智能助手，以下是中国关于{subject}考试的单项选择题以及相应的参考内容，"
+                           f"请根据参考信息选出其中的正确答案。\n 举例："
             }
         ]
         k = self.k
         if self.k == -1:
             k = dev_df.shape[0]
         for i in range(k):
-            tmp = self.format_example(dev_df.iloc[i, :], include_answer=True, cot=cot)
+            example = self.process_prompt(dev_df.iloc[i, :], include_example=True, cot=cot)
             if i == 0:
-                tmp[0]["content"] = f"以下是中国关于{subject}考试的单项选择题，请选出其中的正确答案。\n\n"+tmp[0]["content"]
-            prompt += tmp
+                example[0]["content"] = f"以下是中国关于{subject}考试的单项选择题，请选出其中的正确答案。\n\n" + \
+                                        example[0]["content"]
+            prompt += example
         return prompt
 
-    def concat_query_engine_prompt(self, question_prompt: List):
+    def concat_query_engine_prompt(self, few_shot_prompt: List, question_prompt: List):
         prompt_dict = self.prompt_dict.copy()
         for prompt_type, prompt in prompt_dict.items():
-            prompt_ls = prompt + question_prompt
+            prompt_ls = few_shot_prompt + prompt + question_prompt
             chat_msg_ls = [ChatMessage(**prompt) for prompt in prompt_ls]
             prompt_template = ChatPromptTemplate.from_messages(chat_msg_ls)
             prompt_dict[prompt_type] = prompt_template
@@ -88,19 +94,21 @@ class QueryEngineEvaluator(Evaluator):
             few_shot_prompt = [
                 {
                     "role": "system",
-                    "content": f"你是一个中文人工智能助手，以下是中国关于{subject_name}考试的单项选择题，请选出其中的正确答案。"
+                    "content": f"你是一个中文人工智能助手，以下是中国关于{subject_name}考试的单项选择题以及相应的参考内容，"
+                               f"请根据参考信息选出其中的正确答案。"
                 }
             ]
         answers = list(test_df['answer'])
         for row_index, row in tqdm(test_df.iterrows(), total=len(test_df)):
-            question = self.format_example(row, include_answer=False,)
-            question_prompt = few_shot_prompt + question
-            prompt_dict = self.concat_query_engine_prompt(question_prompt=question_prompt)
+            question = row['question']
+            question_prompt = self.process_prompt(row, include_example=False)
+            prompt_dict = self.concat_query_engine_prompt(few_shot_prompt=few_shot_prompt,
+                                                          question_prompt=question_prompt)
             self.update_query_engine_prompt(prompt_dict=prompt_dict)
             response = None
             while response is None:
                 try:
-                    response_str = self.query_engine.query('')
+                    response_str = self.query_engine.query(question)
                 except Exception as msg:
                     print(msg)
                     sleep(5)

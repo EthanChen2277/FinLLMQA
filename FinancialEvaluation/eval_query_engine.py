@@ -5,14 +5,6 @@ import argparse
 import pandas as pd
 import torch
 import json
-
-from llama_index.core.retrievers import KnowledgeGraphRAGRetriever
-from llama_index.core.query_engine import RetrieverQueryEngine
-from llama_index.core import KnowledgeGraphIndex
-
-KnowledgeGraphIndex().as_query_engine()
-
-from evaluators.query_engine import QueryEngineEvaluator
 import time
 
 choices = ["A", "B", "C", "D"]

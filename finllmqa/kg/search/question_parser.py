@@ -95,7 +95,7 @@ class QuestionParser:
 
         # 选出最匹配的时间 为空则使用近一年的
         extraction_time = ent_dict.get('时间')
-        times_fin, times_gudong, times_dayline = times_all
+        times_fin, times_dayline = times_all
 
         def find_time(index_type, time_pool):
             if len(extraction_time) == 0 or extraction_time[0] == '':
@@ -161,23 +161,23 @@ class QuestionParser:
                                 e_time_trans, f'{index_type}_{subject}')
 
         find_time('财务指标_时间', times_fin)
-        find_time('主要股东_时间', times_gudong)
+        find_time('行情_时间', times_dayline)
 
         # 去除模糊匹配得到重复的日期
         for subject in times_fin.keys():
             basic_ent[f'财务指标_时间_{subject}'] = list(
                 collections.OrderedDict.fromkeys(basic_ent[f'财务指标_时间_{subject}']))
         for subject in times_gudong.keys():
-            basic_ent[f'主要股东_时间_{subject}'] = list(
-                collections.OrderedDict.fromkeys(basic_ent[f'主要股东_时间_{subject}']))
+            basic_ent[f'行情_时间_{subject}'] = list(
+                collections.OrderedDict.fromkeys(basic_ent[f'行情_时间_{subject}']))
 
         # 用户意图  找出最相关的几个意图作为属性条件
         intent_match = set()
         extraction_intent = ent_dict.get('意图', [])
         for e_intent in extraction_intent:
-            if '行业' in e_intent:
-                intent_match.add('行业板块')
-                continue
+            # if '行业' in e_intent:
+            #     intent_match.add('行业板块')
+            #     continue
             if '股东' in e_intent:
                 intent_match.add('主要股东')
                 continue
@@ -237,17 +237,18 @@ class QuestionParser:
                 # time_set = set()
                 subject_intent_match = deepcopy(intent_match)
                 cur_time = datetime.now().strftime('%Y-%m-%d')
-                time_list = basic_ent.get(
-                    f'财务指标_时间_{subject}') if subject_type == '股票' else [cur_time]
-                for time in time_list:
-                    # if time in time_set:
-                    #     continue
-                    # time_set.add(time)
-                    if subject_intent_match:
-                        intent_match_iter = deepcopy(subject_intent_match)
-                        sql_dict['times'] += 1
-                        # 查询主体与意图实体的2跳路径
-                        for intent in intent_match_iter:
+                if subject_intent_match:
+                    intent_match_iter = deepcopy(subject_intent_match)
+                    sql_dict['times'] += 1
+                    # 查询主体与意图实体的2跳路径
+                    for intent in intent_match_iter:
+                        if intent in ['行情类型', '行情数据', '技术指标类型', '技术指标数据']:
+                            time_list = basic_ent.get(
+                                f'行情_时间_{subject}') if subject_type == '股票' else [cur_time]
+                        else:
+                            time_list = basic_ent.get(
+                                f'财务指标_时间_{subject}') if subject_type == '股票' else [cur_time]
+                        for time in time_list:
                             if intent == '股票':
                                 sql_dict['path'].append([f'{subject}{time}的信息如下\n', f"match (n:`股票`) where n.name = '{subject}' \
                                                             return '1', '2', labels(n)[0], properties(n) limit 3"])
@@ -273,7 +274,11 @@ class QuestionParser:
 
         for stock in basic_ent.get('股票', []):
             for rel in single_path:  # 按关系选择路径 限制时间
-                for time in basic_ent.get(f'财务指标_时间_{stock}'):
+                if '行情' in rel:
+                    time_list = basic_ent.get(f'行情_时间_{stock}')
+                else:
+                    time_list = basic_ent.get(f'财务指标_时间_{stock}')
+                for time in time_list:
                     sql_dict['times'] += 1
                     if rel == '按报告期':
                         sql_dict['path'].append([f'{stock}{time}的{rel}信息如下\n', f"match path=(n:`股票`)-[r:基本面]-(m:`{intent}`)-[*0..1]-() where n.name='{stock}' and \

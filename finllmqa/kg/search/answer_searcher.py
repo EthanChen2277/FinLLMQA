@@ -99,7 +99,7 @@ class AnswerSearcher:
         else:
             self.is_trunc = False
 
-        times_fin, times_gudong, times_dayline = {}, {}, {}
+        times_fin, time_dayline = {}, {}
         stock_list = ent_dict['主体']['股票']
         intent_list = ent_dict['意图']
         time_list = ent_dict['时间']
@@ -110,23 +110,23 @@ class AnswerSearcher:
                     f"MATCH (n:`股票`)-[*2]-(m:`常用指标`) where n.name = '{subject}' RETURN properties(m)['报告期'] as time").data()
                 # time_gudong = self.g.run(
                 #     f"match (n:`股票`)-[r:`基本面`]-(m:`主要股东`) where n.name = '{subject}' return collect(m.报告期) as time").data()
-                # time_dayline = self.g.run(f"match (n:`日线行情`) where n.name = '交易日' and n.股票名称='{subject}' return n.交易日 as time").data()
+                time_dayline = self.g.run(f"MATCH (n:`股票`)-[*2]-(m:`行情数据`) where n.name = '{subject}' RETURN properties(m)['报告期'] as time").data()
 
                 times_fin[subject] = [res['time'] for res in time_fin]
                 # times_gudong[subject] = time_gudong[0]['time']
-                # times_dayline[subject] = sorted(time_dayline[0]['time'].split(','))
+                time_dayline[subject] = [res['time'] for res in time_dayline]
 
         cypher_dict_table = ''
         if type == 'table':
             basic_table_ent = {'主体': {'股票': ent_dict['主体']['股票']}, '时间': [
                 '2023年'], '意图': ['基本面']}
             cypher_dict_table = self.QP.question2cypher(
-                basic_table_ent, (times_fin, times_gudong, times_dayline))
+                basic_table_ent, (times_fin, time_dayline))
             # 拿最近十年的数据
             ent_dict['时间'] = [f'{2023 - x +1}年' for x in range(10, 0, -1)]
 
         cypher_dict = self.QP.question2cypher(
-            ent_dict, (times_fin, times_gudong, times_dayline))
+            ent_dict, (times_fin, time_dayline))
 
         if cypher_dict['times'] > 2 or type == 'table' or self.is_trunc:
             self.is_trunc = True
