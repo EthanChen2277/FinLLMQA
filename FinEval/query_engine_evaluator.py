@@ -106,7 +106,6 @@ class QueryEngineEvaluator(Evaluator):
             prompt_dict = self.concat_query_engine_prompt(few_shot_prompt=few_shot_prompt,
                                                           question_prompt=question_prompt)
             self.update_query_engine_prompt(prompt_dict=prompt_dict)
-            print(self.query_engine.get_prompts())
             response_str = None
             while response_str is None:
                 try:
