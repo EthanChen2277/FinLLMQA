@@ -274,7 +274,7 @@ class QuestionParser:
 
         for stock in basic_ent.get('股票', []):
             for rel in single_path:  # 按关系选择路径 限制时间
-                if '行情' in rel:
+                if '行情' in rel or '技术指标' in rel:
                     time_list = basic_ent.get(f'行情_时间_{stock}')
                 else:
                     time_list = basic_ent.get(f'财务指标_时间_{stock}')
