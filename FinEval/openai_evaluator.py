@@ -1,96 +1,65 @@
 import os
-from typing import Dict, List
-
-from llama_index.core import ChatPromptTemplate
-from llama_index.core.base.llms.types import ChatMessage
 from tqdm import tqdm
 from evaluator import Evaluator
 from time import sleep
 import re
 
-from llama_index.core.base.base_query_engine import BaseQueryEngine
+from llama_index.core.base.llms.types import ChatMessage
+from llama_index.llms.openai import OpenAI
+from finllmqa.api.core import LLM_API_URL
 
 
-class QueryEngineEvaluator(Evaluator):
-    def __init__(self, query_engine: BaseQueryEngine, prompt_dict: Dict, retrieve_choice: bool, choices, k, model_name):
+class OpenAI_Evaluator(Evaluator):
+    def __init__(self, choices, k, model_name, llm = None):
         super().__init__(choices, model_name, k)
-        self.query_engine = query_engine
-        self.prompt_dict = prompt_dict
-        self.retrieve_choice = retrieve_choice
+        self.llm = llm or OpenAI(api_key='null', api_base=LLM_API_URL)
 
-    def process_prompt(self, line, include_example=True, cot=False):
-        if include_example:
-            example = f"题目: {line['question']} \n 选项:"
-            for choice in self.choices:
-                example += f'\n{choice}. {line[f"{choice}"]}'
+    def format_example(self,line,include_answer=True,cot=False):
+        example=line['question']
+        for choice in self.choices:
+            example+=f'\n{choice}. {line[f"{choice}"]}'
 
-            example += '\n答案：'
+        example+='\n答案：'
+        if include_answer:
             if cot:
-                ans = line["answer"]
-                content = "让我们一步一步思考，\n"+line["explanation"]+f"\n所以答案是{ans}。"
+                ans=line["answer"]
+                content="让我们一步一步思考，\n"+line["explanation"]+f"\n所以答案是{ans}。"
                 return [
-                    {"role": "user", "content": example},
-                    {"role": "assistant", "content": content}
+                    {"role":"user","content":example},
+                    {"role":"assistant","content":content}
                 ]
             else:
                 return [
-                    {"role": "user", "content": example},
-                    {"role": "assistant", "content": line["answer"]}
+                    {"role":"user","content":example},
+                    {"role":"assistant","content":line["answer"]}
                 ]
         else:
-            if self.retrieve_choice:
-                return [
-                        {"role": "user", "content": '\n答案:\n'}
-                    ]
-            content = '选项:'
-            for choice in self.choices:
-                content += f'\n{choice}. {line[f"{choice}"]}'
-            content += '\n答案:\n'
             if cot:
-                content += "\n让我们一步步思考\n"
+                example += "\n让我们一步步思考,\n"
                 return [
-                        {"role": "user", "content": content}
-                    ]
+                        {"role":"user","content":example}
+                        ]
             else:
                 return [
-                    {"role": "user", "content": content},
+                    {"role":"user","content":example},
                 ]
-
     def generate_few_shot_prompt(self, subject, dev_df, cot=False):
-        prompt = [
+        prompt=[
             {
-                "role": "system",
-                "content": f"你是一个中文人工智能助手，以下是中国关于{subject}考试的单项选择题以及相应的参考内容，"
-                           f"请根据参考信息选出其中的正确答案。\n 举例："
+                "role":"system",
+                "content":f"你是一个中文人工智能助手，以下是中国关于{subject}考试的单项选择题，请选出其中的正确答案。"
             }
         ]
-        k = self.k
-        if self.k == -1:
-            k = dev_df.shape[0]
+        k=self.k
+        if self.k==-1:
+            k=dev_df.shape[0]
         for i in range(k):
-            example = self.process_prompt(dev_df.iloc[i, :], include_example=True, cot=cot)
-            if i == 0:
-                example[0]["content"] = f"以下是中国关于{subject}考试的单项选择题，请选出其中的正确答案。\n\n" + \
-                                        example[0]["content"]
-            prompt += example
+            tmp=self.format_example(dev_df.iloc[i,:],include_answer=True,cot=cot)
+            if i==0:
+                tmp[0]["content"]=f"以下是中国关于{subject}考试的单项选择题，请选出其中的正确答案。\n\n"+tmp[0]["content"]
+            prompt+=tmp
         return prompt
 
-    def concat_query_engine_prompt(self, few_shot_prompt: List, question_prompt: List):
-        prompt_dict = self.prompt_dict.copy()
-        for prompt_type, prompt in prompt_dict.items():
-            full_prompt = few_shot_prompt + prompt + question_prompt
-            chat_msg_ls = [ChatMessage(**prompt) for prompt in full_prompt]
-            prompt_template = ChatPromptTemplate.from_messages(chat_msg_ls)
-            prompt_dict[prompt_type] = prompt_template
-        return prompt_dict
-
-    def update_query_engine_prompt(self, prompt_dict):
-        self.query_engine._response_synthesizer.update_prompts(prompt_dict)
-
-    @staticmethod
-    def remove_prompt_str_format(prompt: str):
-        new_prompt = prompt.replace('{', '{{').replace('}', '}}')
-        return new_prompt
 
     def eval_subject(self, subject_name, test_df, dev_df=None, few_shot=False,
                      save_result_dir=None, cot=False):
@@ -108,34 +77,17 @@ class QueryEngineEvaluator(Evaluator):
                                f"请根据参考信息选出其中的正确答案。"
                 }
             ]
-        remove_str_format_few_shot_prompt = []
-        if not self.retrieve_choice:
-            for prompt in few_shot_prompt:
-                prompt['content'] = self.remove_prompt_str_format(prompt['content'])
-                remove_str_format_few_shot_prompt.append(prompt)
-            few_shot_prompt = remove_str_format_few_shot_prompt
-
         answers = list(test_df['answer'])
         for row_index, row in tqdm(test_df.iterrows(), total=len(test_df)):
-            question = row['question']
-            if self.retrieve_choice:
-                question = f'{question} \n 选项:'
-                for choice in self.choices:
-                    question += f'\n{choice}. {row[f"{choice}"]}'
-            question_prompt = self.process_prompt(row, include_example=False)
-            remove_str_format_question_prompt = []
-            if not self.retrieve_choice:
-                for prompt in question_prompt:
-                    prompt['content'] = self.remove_prompt_str_format(prompt['content'])
-                    remove_str_format_question_prompt.append(prompt)
-                question_prompt = remove_str_format_question_prompt
-            prompt_dict = self.concat_query_engine_prompt(few_shot_prompt=few_shot_prompt,
-                                                          question_prompt=question_prompt)
-            self.update_query_engine_prompt(prompt_dict=prompt_dict)
-            response_str = None
+            question = self.format_example(row, include_answer=False,)
+            full_prompt = few_shot_prompt + question
+            if not few_shot:
+                full_prompt[-1]["content"]=f"以下是中国关于{subject_name}考试的单项选择题，请选出其中的正确答案。\n\n"+full_prompt[-1]["content"]
+            messages = [ChatMessage(**prompt) for prompt in full_prompt]
+            response_str=None
             while response_str is None:
                 try:
-                    response_str = self.query_engine.query(question)
+                    response_str = self.llm.chat(messages=messages)
                     response_str = str(response_str)
                 except Exception as msg:
                     print(msg)
