@@ -1,0 +1,159 @@
+{
+  "accounting": {
+    "score": 41.666666666666664,
+    "num": 36,
+    "correct": 15.0
+  },
+  "advanced_financial_accounting": {
+    "score": 61.904761904761905,
+    "num": 21,
+    "correct": 13.0
+  },
+  "auditing": {
+    "score": 46.875,
+    "num": 32,
+    "correct": 15.0
+  },
+  "central_banking": {
+    "score": 57.142857142857146,
+    "num": 28,
+    "correct": 16.0
+  },
+  "certified_management_accountant": {
+    "score": 55.55555555555556,
+    "num": 18,
+    "correct": 10.0
+  },
+  "certified_practising_accountant": {
+    "score": 29.41176470588235,
+    "num": 34,
+    "correct": 10.0
+  },
+  "china_actuary": {
+    "score": 45.945945945945944,
+    "num": 37,
+    "correct": 17.0
+  },
+  "commercial_bank_finance": {
+    "score": 45.0,
+    "num": 20,
+    "correct": 9.0
+  },
+  "corporate_finance": {
+    "score": 41.666666666666664,
+    "num": 36,
+    "correct": 15.0
+  },
+  "corporate_strategy_and_risk_management": {
+    "score": 63.63636363636363,
+    "num": 33,
+    "correct": 21.0
+  },
+  "cost_accounting": {
+    "score": 61.76470588235294,
+    "num": 34,
+    "correct": 21.0
+  },
+  "econometrics": {
+    "score": 38.888888888888886,
+    "num": 18,
+    "correct": 7.0
+  },
+  "economic_law": {
+    "score": 36.0,
+    "num": 25,
+    "correct": 9.0
+  },
+  "finance": {
+    "score": 56.0,
+    "num": 25,
+    "correct": 14.0
+  },
+  "financial_management": {
+    "score": 20.833333333333332,
+    "num": 24,
+    "correct": 5.0
+  },
+  "financial_markets": {
+    "score": 51.282051282051285,
+    "num": 39,
+    "correct": 20.0
+  },
+  "insurance": {
+    "score": 51.515151515151516,
+    "num": 33,
+    "correct": 17.0
+  },
+  "intermediate_financial_accounting": {
+    "score": 30.76923076923077,
+    "num": 26,
+    "correct": 8.0
+  },
+  "international_economics": {
+    "score": 45.0,
+    "num": 20,
+    "correct": 9.0
+  },
+  "international_finance": {
+    "score": 52.94117647058823,
+    "num": 17,
+    "correct": 9.0
+  },
+  "macroeconomics": {
+    "score": 41.935483870967744,
+    "num": 31,
+    "correct": 13.0
+  },
+  "management_accounting": {
+    "score": 58.62068965517241,
+    "num": 29,
+    "correct": 17.0
+  },
+  "microeconomics": {
+    "score": 50.0,
+    "num": 40,
+    "correct": 20.0
+  },
+  "political_economy": {
+    "score": 52.17391304347826,
+    "num": 23,
+    "correct": 12.0
+  },
+  "public_finance": {
+    "score": 52.5,
+    "num": 40,
+    "correct": 21.0
+  },
+  "tax_law": {
+    "score": 44.44444444444444,
+    "num": 45,
+    "correct": 20.0
+  },
+  "grouped": {
+    "Accounting": {
+      "correct": 144.0,
+      "num": 305,
+      "score": 0.4721311475409836
+    },
+    "Finance": {
+      "correct": 100.0,
+      "num": 198,
+      "score": 0.5050505050505051
+    },
+    "Economy": {
+      "correct": 82.0,
+      "num": 172,
+      "score": 0.47674418604651164
+    },
+    "Certificate": {
+      "correct": 37.0,
+      "num": 89,
+      "score": 0.4157303370786517
+    }
+  },
+  "All": {
+    "score": 0.47513089005235604,
+    "num": 764,
+    "correct": 363.0
+  }
+}

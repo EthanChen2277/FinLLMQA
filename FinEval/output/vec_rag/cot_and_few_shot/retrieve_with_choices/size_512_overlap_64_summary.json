@@ -1,0 +1,34 @@
+{
+  "microeconomics": {
+    "score": 35.0,
+    "num": 40,
+    "correct": 14.0
+  },
+  "grouped": {
+    "Accounting": {
+      "correct": 0.0,
+      "num": 0,
+      "score": 0
+    },
+    "Finance": {
+      "correct": 0.0,
+      "num": 0,
+      "score": 0
+    },
+    "Economy": {
+      "correct": 14.0,
+      "num": 40,
+      "score": 0.35
+    },
+    "Certificate": {
+      "correct": 0.0,
+      "num": 0,
+      "score": 0
+    }
+  },
+  "All": {
+    "score": 0.35,
+    "num": 40,
+    "correct": 14.0
+  }
+}

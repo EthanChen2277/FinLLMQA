@@ -12,9 +12,10 @@ from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.schema import NodeWithScore
 from llama_index.core.vector_stores.types import VectorStoreQueryMode
 from llama_index.graph_stores.nebula import NebulaGraphStore
+from llama_index.legacy.indices.knowledge_graph import KGTableRetriever
 from llama_index.llms.openai import OpenAI
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.core import VectorStoreIndex, StorageContext, load_index_from_storage, QueryBundle, \
+from llama_index.core import StorageContext, load_index_from_storage, QueryBundle, \
     get_response_synthesizer
 
 from finllmqa.api.core import LLM_API_URL
@@ -66,10 +67,11 @@ class KGRetrieverTool(LlamaIndexTool):
                          **kwargs)
         self.get_retriever()
 
-    def load_index_from_storage(self, persist_folder: str, nodes_group: str):
+    def load_index_from_storage(self, persist_folder: str = '../../../storage/storage_graph',
+                                nodes_group: str = 'all'):
         persist_dir = persist_folder + nodes_group
         assert os.path.exists(persist_dir)
-        space_name = f"books_content_{nodes_group}"
+        space_name = f"{nodes_group}"
         edge_types, rel_prop_names = ["relationship"], ["relationship"]
         tags = ["entity"]
 
@@ -97,12 +99,14 @@ class KGRetrieverTool(LlamaIndexTool):
                       with_nl2graphquery: bool = False,
                       graph_traversal_depth: int = 2,
                       max_knowledge_sequence: int = REL_TEXT_LIMIT):
-        self.retriever = KnowledgeGraphRAGRetriever(max_entities=max_entities,
-                                                    max_synonyms=max_synonyms,
-                                                    retriever_mode=retriever_mode,
-                                                    with_nl2graphquery=with_nl2graphquery,
-                                                    graph_traversal_depth=graph_traversal_depth,
-                                                    max_knowledge_sequence=max_knowledge_sequence)
+        self.load_index_from_storage()
+        self.retriever = KGTableRetriever(index=self.index,
+                                          max_entities=max_entities,
+                                          max_synonyms=max_synonyms,
+                                          retriever_mode=retriever_mode,
+                                          with_nl2graphquery=with_nl2graphquery,
+                                          graph_traversal_depth=graph_traversal_depth,
+                                          max_knowledge_sequence=max_knowledge_sequence)
 
 
 class VectorRetrieverTool(LlamaIndexTool):
@@ -119,7 +123,8 @@ class VectorRetrieverTool(LlamaIndexTool):
                          **kwargs)
         self.get_retriever()
 
-    def load_index_from_storage(self, persist_folder: str, nodes_group: str):
+    def load_index_from_storage(self, persist_folder: str = '../../../storage/storage_vector',
+                                nodes_group: str = 'all'):
         persist_dir = persist_folder + nodes_group
         assert os.path.exists(persist_dir)
         storage_context = StorageContext.from_defaults(persist_dir=persist_dir)

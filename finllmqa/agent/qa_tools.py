@@ -1,10 +1,8 @@
 import logging
 from copy import deepcopy
-from langchain_community.chat_models.openai import ChatOpenAI
 from langchain_core.language_models import BaseLanguageModel
 
 from finllmqa.agent.llama_index_tools import RAGQueryEngineTool
-from finllmqa.api.core import LLM_API_URL
 from finllmqa.agent.langchain_tools import KGRetrieverTool, KnowledgeAnalysisTool, GetAttributeTool, \
     PretrainInferenceTool, LangChainTool
 
@@ -12,12 +10,12 @@ from finllmqa.agent.langchain_tools import KGRetrieverTool, KnowledgeAnalysisToo
 class FinInvestmentQA(LangChainTool):
     def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True, *args, **kwargs):
         super().__init__(llm, verbose, *args, **kwargs)
-        self.name = "金融投资"
+        self.name = "股票投资"
         self.description = '''
-        金融投资类问答Agent
+        股票投资类问答Agent
         '''
         self._template = """
-        你是一个专业的金融投资顾问，请你回答以下问题
+        你是一个专业的股票投资顾问，请你回答以下问题
 
         问题：{query}"""
         self.angle = '原问题'
@@ -25,6 +23,7 @@ class FinInvestmentQA(LangChainTool):
         self.knowledge_analysis_pool = []
         self.pretrain_inference_pool = []
         self.kg_retriever = KGRetrieverTool()
+        self.fail_matched_intent_dc = {}
 
     def get_reference(self, query):
         question_dict = self.kg_retriever.get_question_analysis(query)
@@ -37,6 +36,7 @@ class FinInvestmentQA(LangChainTool):
                     'query': query
                     }
                 ka_tool.get_str_prompt()
+                ka_tool.question_intent = question_dict
                 ka_tool.angle = '原问题'
                 self.knowledge_analysis_pool.append(ka_tool)
         else:
@@ -56,6 +56,8 @@ class FinInvestmentQA(LangChainTool):
                                                                             match_type='intent',
                                                                             subject_type='实体')
                 matched_intent_list = matched_attr_list + matched_ent_list
+                if len(matched_intent_list) == 0:
+                    self.fail_matched_intent_dc[angle] = intent
                 new_question_dict['意图'] += matched_intent_list
             if len(new_question_dict['意图']) > 0:
                 query_res = self.kg_retriever.get_kg_query_result(new_question_dict)
@@ -67,6 +69,7 @@ class FinInvestmentQA(LangChainTool):
                     }
                     ka_tool.get_str_prompt()
                     ka_tool.angle = angle
+                    ka_tool.question_intent = new_question_dict
                     self.knowledge_analysis_pool.append(ka_tool)
                     continue
             pi_tool = PretrainInferenceTool()
@@ -119,28 +122,28 @@ class IntentAgent(LangChainTool):
         self.progress(progress_text='开始对问题分类')
 
         self._template = """
-        理解用户问题的意图，并判断该问题的类别属于金融投资还是财经问答，按格式回复：'问题类别：<>'。
-        金融投资类问题指与股票投资相关的问题，对应股票的基本面和行情数据，
+        理解用户问题的意图，并判断该问题的类别属于股票投资还是财经问答，按格式回复：'问题类别：<>'。
+        股票投资类问题指与股票投资相关的问题，对应股票的基本面和行情数据，
         财经问答类问题指与金融，经济，会计等财经类学科的专业问题，对应财经类书籍数据，
         如果问题不属于这两种类别，请回复'其他'
 
-        问题：现在拿100万进行投资，分众传媒和太平洋哪个更值得投资？
-        问题类别：金融投资
+        问题：请分析海天味业的存货周转率和应收账款周转率，以及其销售费用占比，以了解其运营效率和成本控制情况。？
+        问题类别：股票投资
         
-        问题：期权的定价公式有哪些？
-        问题类别：财经问答
+        问题：商业银行的资产运用方式主要包括哪些？
+        问题类别：财经百科
 
-        问题：分众传媒这家公司怎么样？
-        问题类别：金融投资
+        问题：我想了解京东方A的液晶面板出货量和价格走势，以及其技术创新和市场份额，以便分析其行业地位和盈利能力。
+        问题类别：股票投资
         
         问题：从银行借了100万，年化利率为3%，三个月后归还，需要偿还多少利息？
-        问题类别：财经问答
+        问题类别：财经百科
         
-        问题：贵州茅台值得投资吗？
-        问题类别：金融投资
+        问题：中国移动的每股收益在过去两个季度内有何变化？
+        问题类别：股票投资
         
-        问题：什么是经济学十大原理？
-        问题类别：财经问答
+        问题：一般而言，若市场利率上升，货币流通速度会？
+        问题类别：财经百科
         
         问题：大模型是什么？
         问题类别：其他

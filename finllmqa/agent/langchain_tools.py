@@ -4,15 +4,11 @@ import math
 import re
 from abc import ABC
 import logging
-import pymysql
-from datetime import datetime, timedelta
-import pandas as pd
-import asyncio
-from copy import deepcopy
+from datetime import datetime
 
 from langchain.base_language import BaseLanguageModel
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
-from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain.chains.llm import LLMChain
 
 from finllmqa.kg.search import AnswerSearcher
@@ -42,7 +38,9 @@ class LangChainTool(ABC):
         答案："""
         self.prompt_template = None
         self.prompt_str = None
+        self.chat_messages = None
         self.reference = None
+        self.angle = '原问题'
         self.verbose = verbose
         self.progress_func = kwargs.get('progress_func')
         # self.progress(progress_text='开始分析问题')
@@ -61,7 +59,7 @@ class LangChainTool(ABC):
         self.llm_chain = LLMChain(llm=self.llm, prompt=self.prompt_template, verbose=self.verbose)
 
     def get_chat_llm_chain(self):
-        chat_prompt = ChatPromptTemplate.from_messages([('human', self.prompt_str)])
+        chat_prompt = ChatPromptTemplate.from_messages(self.chat_messages or [('human', self.prompt_str)])
         self.llm_chain = chat_prompt | self.llm
 
     def progress(self, progress_text):
@@ -99,13 +97,15 @@ class LangChainTool(ABC):
     def get_stream_response(self, **prompt_kwargs):
         # 将回答的问题开启流式输出
         self.llm.streaming = True
-        if self.reference is None:
-            self.get_reference(**prompt_kwargs)
-        query = prompt_kwargs.get('query', None)
-        if 'query' not in self.reference.keys():
-            assert query is not None, 'query must be given when not included in self reference'
-            self.reference.update({'query': query})
-        self.get_str_prompt()
+        history = prompt_kwargs.get('history', None)
+        if history is None and self.chat_messages is None:
+            if self.reference is None:
+                self.get_reference(**prompt_kwargs)
+            query = prompt_kwargs.get('query', None)
+            if 'query' not in self.reference.keys():
+                assert query is not None, 'query must be given when not included in self reference'
+                self.reference.update({'query': query})
+            self.get_str_prompt()
         self.get_chat_llm_chain()
         if self.verbose:
             logging.info(f"Tool's name is {self.name}. Its reference is {self.reference}.")
@@ -238,159 +238,51 @@ class KGRetrieverTool(LangChainTool):
         self.intent_matched_threshold = 0.7
         self.vec_search_params = {"metric_type": "L2", "params": {"nprobe": 1024}}
 
+    def get_kg_schema(self):
+        # 查询节点标签
+        node_labels_query = """
+        CALL db.labels()
+        """
+        # 查询关系类型（关系标签）
+        relationship_types_query = """
+        CALL db.relationshipTypes()
+        """
+        # 执行查询获取节点标签
+        node_labels = self.graph_searcher.g.run(node_labels_query).to_series().tolist()
+        # 执行查询获取关系类型（关系标签）
+        relationship_types = self.graph_searcher.g.run(relationship_types_query).to_series().tolist()
+        # 构造图谱结构和可视化描述
+        output = "图谱结构和可视化描述：\n"
+        # 输出节点标签
+        output += "节点标签：\n"
+        for label in node_labels:
+            output += f"- {label}\n"
+        # 输出关系类型（关系标签）
+        output += "\n关系类型（关系标签）：\n"
+        for rel_type in relationship_types:
+            output += f"- {rel_type}\n"
+        # 输出图谱结构
+        output += "\n图谱结构：\n"
+        output += "节点标签 -> 关系类型 -> 节点标签\n"
+        # 查询节点和关系的连接
+        for label in node_labels:
+            for rel_type in relationship_types:
+                query = f"""
+                MATCH (n:`{label}`)-[r:`{rel_type}`]->(m)
+                RETURN DISTINCT labels(n) AS start_labels, type(r) AS relationship_type, labels(m) AS end_labels
+                """
+                result = self.graph_searcher.g.run(query)
+                for record in result:
+                    start_labels = ", ".join(record['start_labels'])
+                    relationship_type = record['relationship_type']
+                    end_labels = ", ".join(record['end_labels'])
+                    output += f"- {start_labels} -> {relationship_type} -> {end_labels}\n"
+        return output
+
     def get_kg_query_result(self, ent_dict):
         logging.info(f'start querying kg with ent_dict: {ent_dict}')
         query_res = self.graph_searcher.search_main(ent_dict=ent_dict)
         return query_res
-
-    # 异步调用autogen问答
-    async def generate_multi_reply_concurrently(self, query, question_analysis):
-        # 以知识图谱为数据底层，以大模型为知识补充
-        # 分别存储以知识图谱和语言模型作为知识支撑的答案生成调用
-        data_pool = {'angles': [], 'function_call': []}
-        llm_pool = {'angles': [], 'function_call': []}
-        data_prompt = """
-        请你根据以下给出的数据和问题，找出要回答这个问题可以利用哪些数据，并对已知的数据进行分析
-        请你给出具体的分析结果，不用回答问题
-
-        已知数据：
-        {data}
-        已知数据结束
-
-        问题：{query}
-        答案："""
-        llm_prompt = """
-        对于给定的问题，请你从{angle}的角度去分析问题,只考虑与{angle}有关的因素，不用考虑其他因素,分析字数在两百字左右
-
-        问题：{query}
-        问题分析："""
-        data_chain = LLMChain(llm=self.llm, prompt=PromptTemplate.from_template(data_prompt),
-                              verbose=self.verbose)
-        llm_chain = LLMChain(llm=self.llm, prompt=PromptTemplate.from_template(llm_prompt),
-                             verbose=self.verbose)
-        answer_dict = {}
-        table_question_analysis = deepcopy(question_analysis)
-        data_schema_dict = GetAttributeTool(self.llm).run(query=query)
-        logging.info("回答问题的方案和数据库框架:{}".format(
-            '\n'.join([f'{key} : {value}' for key, value in data_schema_dict.items()])))
-        if not data_schema_dict:
-            return ''
-        for angle, two_task_answers in data_schema_dict.items():
-            attrs = two_task_answers['task_one_answer']
-            db_call = two_task_answers['task_two_answer']
-            if 'price_db' in db_call:
-                # 行情数据分析
-                stock_map = question_analysis['stock_map']
-                time_list = self.parse_market_time(question_analysis['时间'])
-                mk_data = ''
-                start_date = min(time_list)
-                end_date = max(time_list)
-                mk_query = f"从{'、'.join(attrs)}的角度出发，回答{query}"
-                for name, code in stock_map.items():
-                    mk_data += self.get_mk_data(name, code, start_date, end_date)
-                reference = dict(
-                    data=mk_data
-                )
-                data_pool['angles'].append(angle)
-                data_pool['function_call'].append(self.async_generate(mk_query, data_chain, reference))
-            if 'indicator_db' in db_call:
-                # 技术指标分析
-                stock_map = question_analysis['stock_map']
-                time_list = self.parse_market_time(question_analysis['时间'])
-                mk_data = ''
-                start_date = min(time_list)
-                end_date = max(time_list)
-                mk_query = f"从{'、'.join(attrs)}的角度出发，回答{query}"
-                for name, code in stock_map.items():
-                    mk_data += self.get_mk_indicator(name, code, start_date, end_date)
-                reference = dict(
-                    data=mk_data
-                )
-                data_pool['angles'].append(angle)
-                data_pool['function_call'].append(self.async_generate(mk_query, data_chain, reference))
-
-            if 'finance_db' in db_call:
-                effective_kg_question_analysis = deepcopy(question_analysis)
-                for attr in attrs:
-                    attribute_res = self.vector_search(attr, 'attribute', ['text'])
-                    if attribute_res and attribute_res[0].get('score') >= self.attr_threshold:
-                        effective_kg_question_analysis['intent'].append(attribute_res[0].get('text'))
-                        table_question_analysis['intent'].append(attribute_res[0].get('text'))
-                if effective_kg_question_analysis['intent']:
-                    # 图谱数据分析
-                    kg_data = self.graph_searcher.search_main(effective_kg_question_analysis)
-                    reference = dict(
-                        data=kg_data
-                    )
-                    data_pool['angles'].append(angle)
-                    data_pool['function_call'].append(self.async_generate(query, data_chain, reference))
-                elif len(db_call) == 1:
-                    reference = dict(
-                        angle=angle
-                    )
-                    llm_pool['angles'].append(angle)
-                    llm_pool['function_call'].append(self.async_generate(query, llm_chain, reference))
-            if len(db_call) == 0:
-                reference = dict(
-                    angle=angle
-                )
-                llm_pool['angles'].append(angle)
-                llm_pool['function_call'].append(self.async_generate(query, llm_chain, reference))
-
-        logging.info(f"开始第二次查询图表数据: {table_question_analysis}")
-        self.finance_table_to_redis(table_question_analysis)
-        answers = await asyncio.gather(*(data_pool['function_call'] + llm_pool['function_call']))
-        for angle, ans in zip(data_pool['angles'] + llm_pool['angles'], answers):
-            if angle not in answer_dict.keys():
-                answer_dict[angle] = ans + '\n'
-            else:
-                answer_dict[angle] += ans + '\n'
-        return answer_dict
-
-    def parse_market_time(self, time_list: list) -> list:
-        new_time_list = []
-        if not time_list:
-            now = datetime.now()
-            current_year_month = now.strftime('%Y-%m') + '-31'
-            last_month_first_day = (now.replace(day=1) - timedelta(days=1)).replace(day=1)
-            two_months_ago_first_day = (last_month_first_day.replace(day=1) - timedelta(days=1)).replace(
-                day=1).strftime('%Y-%m-%d')
-            new_time_list += [current_year_month, two_months_ago_first_day]
-        for time in time_list:
-            try:
-                # 用户给到某年某月某日  精确
-                ymd = datetime.strptime(time, "%Y年%m月%d日").strftime("%Y-%m-%d")
-                new_time_list.append(ymd)
-            except:
-                try:
-                    # 用户给到某年某月 模糊
-                    ym = datetime.strptime(time, "%Y年%m月").strftime("%Y-%m")
-                    new_time_list.append(ym + '-31')
-                except:
-                    try:
-                        # 用户给到某年 模糊
-                        y = datetime.strptime(time, "%Y年").strftime("%Y")
-                        # 获取当前日期时间
-                        now = datetime.now()
-                        # 获取年份和月份
-                        current_year = str(now.year)
-                        if y == current_year:
-                            current_year_month = now.strftime('%Y-%m') + '-31'
-                            last_month_first_day = (now.replace(day=1) - timedelta(days=1)).replace(day=1)
-                            two_months_ago_first_day = (
-                                        last_month_first_day.replace(day=1) - timedelta(days=1)).replace(
-                                day=1).strftime('%Y-%m-%d')
-                            new_time_list += [current_year_month, two_months_ago_first_day]
-                        else:
-                            new_time_list += [f'{y}-12-31', f'{y}-10-01']
-                    except:
-                        now = datetime.now()
-                        current_year_month = now.strftime('%Y-%m') + '-31'
-                        last_month_first_day = (now.replace(day=1) - timedelta(days=1)).replace(day=1)
-                        two_months_ago_first_day = (last_month_first_day.replace(day=1) - timedelta(days=1)).replace(
-                            day=1).strftime('%Y-%m-%d')
-                        new_time_list += [current_year_month, two_months_ago_first_day]
-        return new_time_list
 
     def vector_search(self, text, collection_name, output_fields):
         embeddings = self.embeddings_func(text=text)
@@ -531,46 +423,6 @@ class KGRetrieverTool(LangChainTool):
             matched_subject_list.append(most_similar_subject)
         return matched_subject_list
 
-    def get_mk_data(self, name, symbol, start_date, end_date):
-        # 创建数据库连接
-        conn = pymysql.connect(host='192.168.1.101', port=13306, user='root', password='km101', database='market_data')
-        cursor = conn.cursor()
-
-        # 执行sql语句
-        sql = 'SELECT trade_date,low,high,close,volume FROM  a_market_data_day_K WHERE symbol = %s and ' \
-              'trade_date >= %s and trade_date <= %s ORDER BY trade_date DESC'
-        cursor.execute(sql, [int(symbol), start_date, end_date])
-        rows = cursor.fetchall()
-        conn.close()
-
-        # 将查询结果存入字典
-        keys = ['交易日', '最低价', '最高价', '收盘价', '成交量']
-        df = pd.DataFrame(list(rows), columns=keys).set_index('交易日', drop=True)
-        df[['最低价', '最高价', '收盘价']] = df[['最低价', '最高价', '收盘价']].astype(float).round(2)
-        df['成交量'] = df['成交量'].astype(float).apply(lambda x: "{:.0f}".format(x))
-        df['涨跌幅'] = (df['收盘价'] / df['收盘价'].shift(-1) - 1).apply(lambda x: "{:.2%}".format(x))
-        return f'{name}从{start_date}到{end_date}的行情信息如下: \n {df.to_markdown()}'
-
-    def get_mk_indicator(self, name, symbol, start_date, end_date):
-        # 创建数据库连接
-        conn = pymysql.connect(host='192.168.1.101', port=13306, user='root', password='km101', database='market_data')
-        cursor = conn.cursor()
-
-        # 执行sql语句
-        sql = 'SELECT trade_date, MA5, BBANDS_upperband,BBANDS_lowerband, RSI, MACD FROM  talib_indicator_data WHERE symbol = %s and trade_date >= %s and trade_date <= %s ORDER BY trade_date DESC LIMIT 50'
-        cursor.execute(sql, [int(symbol), start_date, end_date])
-        rows = cursor.fetchall()
-        # 结束数据库连接
-        conn.close()
-
-        # 将查询结果存入字典
-        keys = ['交易日', '5日均线(布林带中轨)', '布林带上轨', '布林带下轨', 'RSI', 'MACD']
-        df = pd.DataFrame(list(rows), columns=keys).set_index('交易日', drop=True)
-        df[['5日均线(布林带中轨)', '布林带上轨', '布林带下轨', 'RSI', 'MACD']] = df[
-            ['5日均线(布林带中轨)', '布林带上轨', '布林带下轨', 'RSI', 'MACD']].astype(float)
-        df = df.applymap(lambda x: "{:.2f}".format(x) if isinstance(x, (int, float)) else x)
-        return f'{name}从{start_date}到{end_date}的技术指标如下: \n {df.to_markdown()}'
-
 
 class CreateSchemeTool(LangChainTool):
     def __init__(self, llm: BaseLanguageModel = None, verbose: bool = True):
@@ -580,17 +432,14 @@ class CreateSchemeTool(LangChainTool):
         根据问题生成方案
         '''
         self._template = """
-        根据问题分析出回答该问题所需要涉及的不同角度，尽可能回答可以量化的角度,并以列表的形式回复（不需要包含主体的名字），角度不超过四个，并且不同角度之间的相关性要比较低。
-
+        你是一名股票投资方面的专家，对于股票投资类问题，你需要分析出回答该问题可能需要涉及哪些基本面和行情数据，并以列表的形式回复，不同分析角度之间的相关性要低。
+        
         举例：
-        问题：葛洲坝是否值得投资？
-        方案生成：['财务分析','行业地位分析','风险评估']
-
-        问题：A股最近表现如何？
-        方案生成：['市场表现指标','宏观经济因素','行业动态', '投资者情绪']
+        问题：贵州茅台是否值得投资？
+        分析角度：['盈利指标','估值','价格走势']
 
         问题：分众传媒和新潮传媒哪个更好？
-        方案生成：['市场地位和品牌影响力','财务状况和盈利能力','业务模式和创新能力']
+        方案生成：['盈利指标','风险指标','价值指标']
 
         问题：{query}
         方案生成："""
@@ -604,12 +453,12 @@ class GetAttributeTool(LangChainTool):
         根据问题和方案生成具体指标
         '''
         self._template = """
-        根据给出的问题和问题分析因素,回答在当前分析因素下具体需要关注的指标,尽可能回答可以量化的指标,并以列表的形式回复。
+        你是一名股票投资方面的专家，根据给出的股票投资类问题和问题分析角度,回答在当前分析角度下需要关注哪些意图指标,并以列表的形式回复。
 
         举例：
-        问题：葛洲坝是否值得投资？
-        分析因素：财务表现
-        关注指标: ['资产负债率', '净利润', '营业总收入'] 
+        问题：贵州茅台是否值得投资？
+        分析角度：盈利指标
+        意图指标: ['净利润', '每股净利润', '营业收入']
         
         问题：葛洲坝是否值得投资？
         分析因素：价格走势
@@ -618,10 +467,6 @@ class GetAttributeTool(LangChainTool):
         问题：葛洲坝是否值得投资？
         分析因素：盈利能力
         关注指标: ['净资产收益率','总资产净利率','毛利率']
-
-        问题：葛洲坝是否值得投资？
-        分析因素：竞争对手
-        关注指标: []
         
         问题：{query}
         分析因素：{angle}
@@ -656,8 +501,8 @@ class GetAttributeTool(LangChainTool):
             except Exception as e:
                 logging.info(e)
                 logging.info(f"生成的指标不是列表形式，无法被解析:{resp}")
-                return ''
-        return response
+                continue
+        return response or ''
 
 
 class KnowledgeAnalysisTool(LangChainTool):
@@ -677,6 +522,7 @@ class KnowledgeAnalysisTool(LangChainTool):
         问题：{query}
         答案："""
         self.angle = ''
+        self.question_intent = {}
 
 
 class PretrainInferenceTool(LangChainTool):

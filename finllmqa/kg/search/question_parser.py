@@ -8,7 +8,10 @@ import heapq
 # import json
 
 # bleu 和 编辑距离 用于计算相似度
-
+DAYLINE_INTENT_LS = ['基础行情', '技术指标', '收盘', '成交量', '涨跌幅', '换手率', '总市值', '市盈率(静)',
+                     '市盈率(TTM)', '市净率', '五日移动均线(MA5)', '二十日移动均线(MA20)',
+                     '五日指数移动均线(EMA5)', '二十日指数移动均线(EMA20)', '相对强弱指标(RSI)',
+                     'MACD', '信号线(MACD_signal)', '离差图(MACD_hist)']
 
 def bleu(ner, ent):
     """计算抽取实体与现有实体的匹配度 ner候选词,ent查询词"""
@@ -167,7 +170,7 @@ class QuestionParser:
         for subject in times_fin.keys():
             basic_ent[f'财务指标_时间_{subject}'] = list(
                 collections.OrderedDict.fromkeys(basic_ent[f'财务指标_时间_{subject}']))
-        for subject in times_gudong.keys():
+        for subject in times_dayline.keys():
             basic_ent[f'行情_时间_{subject}'] = list(
                 collections.OrderedDict.fromkeys(basic_ent[f'行情_时间_{subject}']))
 
@@ -242,7 +245,7 @@ class QuestionParser:
                     sql_dict['times'] += 1
                     # 查询主体与意图实体的2跳路径
                     for intent in intent_match_iter:
-                        if intent in ['行情类型', '行情数据', '技术指标类型', '技术指标数据']:
+                        if intent in DAYLINE_INTENT_LS:
                             time_list = basic_ent.get(
                                 f'行情_时间_{subject}') if subject_type == '股票' else [cur_time]
                         else:
@@ -251,26 +254,26 @@ class QuestionParser:
                         for time in time_list:
                             if intent == '股票':
                                 sql_dict['path'].append([f'{subject}{time}的信息如下\n', f"match (n:`股票`) where n.name = '{subject}' \
-                                                            return '1', '2', labels(n)[0], properties(n) limit 3"])
+                                                            return '1', '2', labels(n)[0], properties(n)"])
                                 subject_intent_match -= {intent}
                             # 意图在一级，但数据在二级，匹配到二级
                             elif intent in ['财务指标', '主营构成', '主要股东', '财务报表']:
                                 sql_dict['path'].append([f'{subject}{time}的{intent}信息如下\n', f"match path=(n:`股票`)-[r:基本面]-(m:`{intent}`)-[*1]-() where n.name='{subject}' and \
                                                     all(node in nodes(path)[1..3] where (node.报告期 is null or node.报告期 contains '{time}')) \
                                                     WITH DISTINCT path LIMIT {self.max_return} \
-                                                    return distinct type(relationships(path)[1]), properties(relationships(path)[1]), labels(nodes(path)[2])[0], properties(nodes(path)[2]) limit 3"])
+                                                    return distinct type(relationships(path)[1]), properties(relationships(path)[1]), labels(nodes(path)[2])[0], properties(nodes(path)[2])"])
                             # 意图和数据都在一级，则匹配到一级
                             elif intent in ['实际控制人', '行业板块']:
                                 sql_dict['path'].append([f'{subject}{time}的{intent}信息如下\n', f"match path=(n:`{subject_type}`)-[*1]-(m:`{intent}`) where n.name='{subject}' and \
                                                             all(node in nodes(path) where (node.报告期 is null or node.报告期 =~'{time}.*')) \
                                                             WITH DISTINCT path LIMIT {self.max_return} \
-                                                            return distinct type(relationships(path)[0]), properties(relationships(path)[0]), labels(nodes(path)[1])[0], properties(nodes(path)[1]) limit 3"])
+                                                            return distinct type(relationships(path)[0]), properties(relationships(path)[0]), labels(nodes(path)[1])[0], properties(nodes(path)[1])"])
                             # 意图和数据都在二级，需要增加匹配路径长度
                             else:
                                 sql_dict['path'].append([f'{subject}{time}的{intent}信息如下\n', f"match path=(n:`股票`)-[*1..2]-(m:`{intent}`) where n.name='{subject}' and \
                                                     all(node in nodes(path)[1..3] where (node.报告期 is null or node.报告期 contains '{time}')) \
                                                     WITH DISTINCT path LIMIT {self.max_return} \
-                                                    return distinct type(relationships(path)[1]), properties(relationships(path)[1]), labels(nodes(path)[2])[0], properties(nodes(path)[2]) limit 3"])
+                                                    return distinct type(relationships(path)[1]), properties(relationships(path)[1]), labels(nodes(path)[2])[0], properties(nodes(path)[2])"])
 
         for stock in basic_ent.get('股票', []):
             for rel in single_path:  # 按关系选择路径 限制时间
@@ -284,24 +287,24 @@ class QuestionParser:
                         sql_dict['path'].append([f'{stock}{time}的{rel}信息如下\n', f"match path=(n:`股票`)-[r:基本面]-(m:`{intent}`)-[*0..1]-() where n.name='{stock}' and \
                                                     all(node in nodes(path)[1..3] where (node.报告期 is null or node.报告期 contains '{time}')) \
                                                     WITH DISTINCT path LIMIT {self.max_return} \
-                                                    return distinct type(relationships(path)[1]), properties(relationships(path)[1]), labels(nodes(path)[2])[0], properties(nodes(path)[2]) limit 3"])
+                                                    return distinct type(relationships(path)[1]), properties(relationships(path)[1]), labels(nodes(path)[2])[0], properties(nodes(path)[2])"])
                     elif rel == '基本面':
                         sql_dict['path'].append([f'{stock}{time}的{rel}信息如下\n', f"match path=(n:`股票`)-[r:`{rel}`]->(m)-[*1]-() WHERE (m:`财务指标`) and n.name='{stock}' and \
                                                         all(node IN nodes(path) where node.报告期 IS NULL OR node.报告期 contains '{time}' OR node.name contains '{time}') \
                                                     WITH DISTINCT path \
-                                                    return distinct type(relationships(path)[1]), properties(relationships(path)[1]), labels(nodes(path)[2])[0], properties(nodes(path)[2]) limit 3"])  # limit {self.max_return}
+                                                    return distinct type(relationships(path)[1]), properties(relationships(path)[1]), labels(nodes(path)[2])[0], properties(nodes(path)[2])"])  # limit {self.max_return}
                     else:
                         sql_dict['path'].insert(0, [f'{stock}{time}的{rel}信息如下\n', f"match path=(n)-[r:`{rel}`]->(m) WHERE n.name='{stock}' and \
                                                         (m.报告期 IS NULL OR m.报告期 =~'{time}.*') \
                                                     WITH DISTINCT path LIMIT {self.max_return} \
                                                     unwind nodes(path) as node unwind relationships(path) as rel \
-                                                    return distinct type(rel), properties(rel), labels(node)[0], properties(node) limit 3"])  # limit {self.max_return}
+                                                    return distinct type(rel), properties(rel), labels(node)[0], properties(node)"])  # limit {self.max_return}
 
                         sql_dict['path'].append([f'{stock}{time}的{rel}信息如下\n', f"match path=(n)-[r:`{rel}`]->(m)-[*0..2]->() WHERE n.name='{stock}' and \
                                                          (m.报告期 IS NULL OR m.报告期 =~'{time}.*') \
                                                     WITH DISTINCT path LIMIT {self.max_return} \
                                                     unwind nodes(path) as node unwind relationships(path) as rel \
-                                                    return distinct type(rel), properties(rel), labels(node)[0], properties(node) limit 3"])
+                                                    return distinct type(rel), properties(rel), labels(node)[0], properties(node)"])
 
         if not sql_dict:  # 没有意图直接返回从主体出发的相关信息
             for subject_type in ['股票']:
@@ -316,5 +319,5 @@ class QuestionParser:
                                                         all(node in nodes(path) where (node.报告期 IS NULL OR node.报告期 =~'{time}.*')) \
                                                         WITH DISTINCT path LIMIT {self.max_return} \
                                                         unwind nodes(path) as node unwind relationships(path) as rel \
-                                                        return distinct type(rel), properties(rel), labels(node)[0], properties(node) limit 3"])  # limit {self.max_return}
+                                                        return distinct type(rel), properties(rel), labels(node)[0], properties(node)"])  # limit {self.max_return}
         return sql_dict

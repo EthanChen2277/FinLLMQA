@@ -232,17 +232,16 @@ class GroupChat:
         """Return the system message for selecting the next speaker. This is always the *first* message in the context."""
         if agents is None:
             agents = self.agents
-        return f"""You are in a role play game. The following roles are available:
+        return f"""对于接下来的对话，你需要选择小组里的成员之一来进行下一次发言，小组成员有：
 {self._participant_roles(agents)}.
 
-Read the following conversation.
-Then select the next role from {[agent.name for agent in agents]} to play. Only return the role."""
+基于以下对话，从{[agent.name for agent in agents]}中选择下一个发言的小组成员. 只需要返回小组成员的名称."""
 
     def select_speaker_prompt(self, agents: Optional[List[Agent]] = None) -> str:
         """Return the floating system prompt selecting the next speaker. This is always the *last* message in the context."""
         if agents is None:
             agents = self.agents
-        return f"Read the above conversation. Then select the next role from {[agent.name for agent in agents]} to play. Only return the role."
+        return f"基于以上对话. 从{[agent.name for agent in agents]}中选择下一个发言的小组成员. 只需要返回小组成员的名称."
 
     def introductions_msg(self, agents: Optional[List[Agent]] = None) -> str:
         """Return the system message for selecting the next speaker. This is always the *first* message in the context."""

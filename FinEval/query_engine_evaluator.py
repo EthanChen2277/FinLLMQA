@@ -141,55 +141,59 @@ class QueryEngineEvaluator(Evaluator):
                     print(msg)
                     sleep(5)
                     continue
-            if cot:
-                if not few_shot:
-                    response_str=response_str.strip()
-                    if len(response_str)>0:
-                        ans_list=self.extract_ans(response_str)
-                        if len(ans_list)>0 and (ans_list[-1]==row["answer"]):
-                            correct_num+=1
-                            correct=1
-                        else:
-                            correct=0
-                    else:
-                        correct=0
-                else:
-                    ans_list=re.findall(r"答案是(.+?)。",response_str)
-                    if len(ans_list)==0:
-                        ans_list=re.findall(r"答案为(.+?)。",response_str)
-                    if len(ans_list)==0:
-                        ans_list=re.findall(r"选项(.+?)是正确的。",response_str)
-
-                    if len(ans_list)==0:
-                        correct=0
-                    else:
-                        if self.exact_match(ans_list[-1],row["answer"]):
-                            correct_num+=1
-                            correct=1
-                        else:
-                            correct=0
-
+            if self.contains_only_one_correct_choice(response_str, row["answer"]):
+                correct_num+=1
+                correct=1
             else:
-                response_str=response_str.strip()
-                if few_shot:
-                    if len(response_str)>0:
-                        if self.exact_match(response_str,row["answer"]):
-                            correct_num+=1
-                            correct=1
+                if cot:
+                    if not few_shot:
+                        response_str=response_str.strip()
+                        if len(response_str)>0:
+                            ans_list=self.extract_ans(response_str)
+                            if len(ans_list)>0 and (ans_list[-1]==row["answer"]):
+                                correct_num+=1
+                                correct=1
+                            else:
+                                correct=0
                         else:
                             correct=0
                     else:
-                        correct=0
+                        ans_list=re.findall(r"答案是(.+?)。",response_str)
+                        if len(ans_list)==0:
+                            ans_list=re.findall(r"答案为(.+?)。",response_str)
+                        if len(ans_list)==0:
+                            ans_list=re.findall(r"选项(.+?)是正确的。",response_str)
+
+                        if len(ans_list)==0:
+                            correct=0
+                        else:
+                            if self.exact_match(ans_list[-1],row["answer"]):
+                                correct_num+=1
+                                correct=1
+                            else:
+                                correct=0
+
                 else:
-                    if len(response_str)>0:
-                        ans_list=self.extract_ans(response_str)
-                        if len(ans_list)>0 and (ans_list[-1]==row["answer"]):
-                            correct_num+=1
-                            correct=1
+                    response_str=response_str.strip()
+                    if few_shot:
+                        if len(response_str)>0:
+                            if self.exact_match(response_str,row["answer"]):
+                                correct_num+=1
+                                correct=1
+                            else:
+                                correct=0
                         else:
                             correct=0
                     else:
-                        correct=0
+                        if len(response_str)>0:
+                            ans_list=self.extract_ans(response_str)
+                            if len(ans_list)>0 and (ans_list[-1]==row["answer"]):
+                                correct_num+=1
+                                correct=1
+                            else:
+                                correct=0
+                        else:
+                            correct=0
             if save_result_dir:
                 result.append(response_str)
                 score.append(correct)
@@ -227,9 +231,6 @@ class QueryEngineEvaluator(Evaluator):
         ans_list = []
         if response_str[0] in ["A", 'B', 'C', 'D']:
             ans_list.append(response_str[0])
-        for choice in ["A", 'B', 'C', 'D']:
-            if choice in response_str:
-                ans_list.append(choice)
         for p in pattern:
             if len(ans_list) == 0:
                 ans_list = re.findall(p, response_str)

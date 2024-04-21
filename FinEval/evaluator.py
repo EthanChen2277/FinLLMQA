@@ -46,3 +46,12 @@ class Evaluator:
 
     def exact_match(self,pred, target):
         return self.normalize_answer(pred)==self.normalize_answer(target)
+    
+    def contains_only_one_correct_choice(self, answer, target):
+        
+        choices_in_answer = [choice for choice in self.choices if choice in answer]
+
+        if len(choices_in_answer) == 1 and choices_in_answer[0] == target:
+            return True
+        else:
+            return False

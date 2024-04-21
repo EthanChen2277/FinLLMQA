@@ -36,8 +36,9 @@ class AnswerSearcher:
 
         latest_time = heapq.nlargest(3, fin_time_pool)
 
-        ent_data = self.g.run("CALL db.labels() YIELD label").data()
-        ent_pool = [item['label'] for item in ent_data]
+        ent_data_ls = []
+        ent_data_ls.append(self.g.run("CALL db.labels() YIELD label").data())
+        ent_pool = [item['label'] for ent_data in ent_data_ls for item in ent_data]
         ent_pool.remove('个股研报')
         ent2attr = {}
         attr_pool = set()        # 返回节点属性名
@@ -72,7 +73,12 @@ class AnswerSearcher:
         # for tp, subject in ent_dict['主体'].values():
         #     time = self.g.run(f"match (n:`{tp}`) where n.name='{subject}' return n.时间 as time").data()
         #     times[subject] =
-
+        ent_data_ls.append(
+            self.g.run("match (n) WHERE labels(n) = ['行情类型'] return distinct n.行情类型 as label").data())
+        ent_data_ls.append(
+            self.g.run("match (n) WHERE labels(n) = ['技术指标类型'] return distinct n.技术指标类型 as label").data())
+        ent_pool = [item['label'] for ent_data in ent_data_ls for item in ent_data]
+        ent_pool.remove('个股研报')
         self.knowledge = {'股票': stock_pool, '股票代码': code_pool, '财务指标_时间': fin_time_pool, '近一年': latest_time,
                           '实体': ent_pool, "单节点属性": ent2attr, '关系': rel_pool, '关系三元组': self.rel_triple,
                           '关系三元组辅助': self.rel_triple_hlt, '属性': attr_pool, '股票一级子节点': stock_1_grade_nodes}
@@ -99,7 +105,7 @@ class AnswerSearcher:
         else:
             self.is_trunc = False
 
-        times_fin, time_dayline = {}, {}
+        time_fin_dc, time_dayline_dc = {}, {}
         stock_list = ent_dict['主体']['股票']
         intent_list = ent_dict['意图']
         time_list = ent_dict['时间']
@@ -110,23 +116,23 @@ class AnswerSearcher:
                     f"MATCH (n:`股票`)-[*2]-(m:`常用指标`) where n.name = '{subject}' RETURN properties(m)['报告期'] as time").data()
                 # time_gudong = self.g.run(
                 #     f"match (n:`股票`)-[r:`基本面`]-(m:`主要股东`) where n.name = '{subject}' return collect(m.报告期) as time").data()
-                time_dayline = self.g.run(f"MATCH (n:`股票`)-[*2]-(m:`行情数据`) where n.name = '{subject}' RETURN properties(m)['报告期'] as time").data()
+                time_dayline = self.g.run(f"MATCH (n:`股票`)-[*2]-(m:`收盘`) where n.name = '{subject}' RETURN properties(m)['报告期'] as time").data()
 
-                times_fin[subject] = [res['time'] for res in time_fin]
+                time_fin_dc[subject] = [res['time'] for res in time_fin]
                 # times_gudong[subject] = time_gudong[0]['time']
-                time_dayline[subject] = [res['time'] for res in time_dayline]
+                time_dayline_dc[subject] = [res['time'] for res in time_dayline]
 
         cypher_dict_table = ''
         if type == 'table':
             basic_table_ent = {'主体': {'股票': ent_dict['主体']['股票']}, '时间': [
                 '2023年'], '意图': ['基本面']}
             cypher_dict_table = self.QP.question2cypher(
-                basic_table_ent, (times_fin, time_dayline))
+                basic_table_ent, (time_fin_dc, time_dayline_dc))
             # 拿最近十年的数据
             ent_dict['时间'] = [f'{2023 - x +1}年' for x in range(10, 0, -1)]
 
         cypher_dict = self.QP.question2cypher(
-            ent_dict, (times_fin, time_dayline))
+            ent_dict, (time_fin_dc, time_dayline_dc))
 
         if cypher_dict['times'] > 2 or type == 'table' or self.is_trunc:
             self.is_trunc = True
@@ -542,8 +548,7 @@ if __name__ == '__main__':
     logger.setLevel(logging.INFO)
     # logging.basicConfig(filename='answer2.log', level=logging.INFO, format='%(message)s')
 
-    ent_dict = {'主体': {'股票': ['东方财富']}, '时间': [],
-                '意图': ['常用指标']}
+    ent_dict = {'主体': {'股票': ['贵州茅台']}, '时间': ['2023年'], '意图': ['收盘价']}
     start = time.time()
     answer = AS.search_main(ent_dict)
     end = time.time()
