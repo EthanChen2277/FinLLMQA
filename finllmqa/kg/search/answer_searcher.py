@@ -98,9 +98,10 @@ class AnswerSearcher:
     def check_length(self, output):
         return True if len(self.encoding.encode(output)) > self.max_length else False
 
-    def search_main(self, ent_dict, type='llm'):
+    def search_main(self, ent_dict, _type='llm'):
 
-        if len(ent_dict['主体']['股票']) > 1 or len(ent_dict['时间']) > 1 or len(ent_dict['意图']) > 2 or '基本面' in ent_dict['意图']:
+        if len(ent_dict['主体']['股票']) > 1 or len(ent_dict['时间']) > 1 or len(ent_dict['意图']) > 4 \
+                or '基本面' in ent_dict['意图']:
             self.is_trunc = True
         else:
             self.is_trunc = False
@@ -122,19 +123,19 @@ class AnswerSearcher:
                 # times_gudong[subject] = time_gudong[0]['time']
                 time_dayline_dc[subject] = [res['time'] for res in time_dayline]
 
-        cypher_dict_table = ''
-        if type == 'table':
-            basic_table_ent = {'主体': {'股票': ent_dict['主体']['股票']}, '时间': [
-                '2023年'], '意图': ['基本面']}
-            cypher_dict_table = self.QP.question2cypher(
-                basic_table_ent, (time_fin_dc, time_dayline_dc))
-            # 拿最近十年的数据
-            ent_dict['时间'] = [f'{2023 - x +1}年' for x in range(10, 0, -1)]
+        # cypher_dict_table = ''
+        # if _type == 'table':
+        #     basic_table_ent = {'主体': {'股票': ent_dict['主体']['股票']}, '时间': [
+        #         '2023年'], '意图': ['基本面']}
+        #     cypher_dict_table = self.QP.question2cypher(
+        #         basic_table_ent, (time_fin_dc, time_dayline_dc))
+        #     # 拿最近十年的数据
+        #     ent_dict['时间'] = [f'{2023 - x +1}年' for x in range(10, 0, -1)]
 
         cypher_dict = self.QP.question2cypher(
             ent_dict, (time_fin_dc, time_dayline_dc))
 
-        if cypher_dict['times'] > 2 or type == 'table' or self.is_trunc:
+        if cypher_dict['times'] > 2:
             self.is_trunc = True
         else:
             self.is_trunc = False
@@ -157,7 +158,7 @@ class AnswerSearcher:
 
         def write_prop_tabular(labl: str, prop: dict, no_rep: set, is_trunc: bool = False):
             ret = ''
-            truncation = self.truncation_dict[type]
+            truncation = self.truncation_dict[_type]
             if labl and prop:
                 truc = (len(prioritize_keys[labl]) if labl in prioritize_keys.keys(
                 ) else truncation) if is_trunc else len(prop)
@@ -292,7 +293,8 @@ class AnswerSearcher:
             "销售成本率": "%",
             "成本费用率": "%",
             "所得税/利润总额": "%",
-            "经营活动净现金/销售收入": ""
+            "经营活动净现金/销售收入": "",
+            "成交量": "手"
         }
 
         def query_data_from_neo4j(cypher_dict):
@@ -316,7 +318,7 @@ class AnswerSearcher:
                 if res:
                     if desc_prefix not in no_rep:
                         output += '*'+desc_prefix
-                        if type == 'llm':
+                        if _type == 'llm':
                             no_rep.add(desc_prefix)
 
                     tmp_output = ""
@@ -327,7 +329,7 @@ class AnswerSearcher:
                             prop = prioritize_key(prop, prioritize_keys[labl])
                         else:
                             prop = prioritize_key(
-                                prop, ['name', '报告期', '分类类型', '股票名称'])
+                                prop, ['name', '报告期', '分类类型', '股票代码'])
 
                         ret1 = write_prop_tabular(labl, prop, no_rep, True)
                         ret2 = write_prop_tabular(
@@ -335,7 +337,7 @@ class AnswerSearcher:
 
                         tmp_output_trunc += ret1
                         tmp_output += ret2
-                        if type == 'llm':
+                        if _type == 'llm':
                             no_rep.add(ret1)
                             no_rep.add(ret2)
                     if self.is_trunc:
@@ -361,7 +363,7 @@ class AnswerSearcher:
                 if res:
                     if desc_prefix not in no_rep:
                         output += '*'+desc_prefix
-                        if type == 'llm':
+                        if _type == 'llm':
                             no_rep.add(desc_prefix)
 
                     tmp_output_desc = ""  # 等到循环表示的查询统计结束 再考虑是否将属性值放到output中.
@@ -370,6 +372,7 @@ class AnswerSearcher:
                     for r in res:
                         labl_rel, prop_rel, labl_node, prop_node = list(
                             r.values())
+                        prop_node = collections.OrderedDict(sorted(prop_node.items(), key=lambda x: x[0]))
                         if labl_node is None:
                             continue
                         if labl_node in prioritize_keys.keys():
@@ -377,7 +380,7 @@ class AnswerSearcher:
                                 prop_node, prioritize_keys[labl_node])
                         else:
                             prop_node = prioritize_key(
-                                prop_node, ['name', '报告期', '分类类型', '股票名称'])
+                                prop_node, ['name', '报告期', '分类类型', '股票代码'])
                         if labl_node == '财务指标':
                             prop_node = filtered_key(prop_node, ['报告期'])
                         # if [labl_node] not in self.first_step_labels:
@@ -406,7 +409,7 @@ class AnswerSearcher:
                             labl_node, prop_node, no_rep, self.is_trunc)
                         tmp_output_trunc += ret1
                         tmp_output += ret2
-                        if type == 'llm':
+                        if _type == 'llm':
                             no_rep.add(ret1)
                             no_rep.add(ret2)
 
@@ -416,7 +419,7 @@ class AnswerSearcher:
                     cur_length = output+tmp_output_trunc + \
                         tmp_output_desc if self.is_trunc else output+tmp_output+tmp_output_desc
                     # or self.is_trunc
-                    if self.check_length(cur_length) and self.is_trunc and type == 'llm':
+                    if self.check_length(cur_length) and _type == 'llm':
                         output = cur_length
 
                         # 正则表达式模式，匹配|----|----|
@@ -429,7 +432,7 @@ class AnswerSearcher:
             return output
 
         output = query_data_from_neo4j(cypher_dict)
-        output_table = query_data_from_neo4j(cypher_dict_table) if cypher_dict_table else ''
+        # output_table = query_data_from_neo4j(cypher_dict_table) if cypher_dict_table else ''
 
         def json_load(data):
             table = []
@@ -452,83 +455,83 @@ class AnswerSearcher:
                         unit = attr_unit[key] if key in attr_unit.keys(
                         ) else ''
                         norm_value = f'{round(float(value)/100000000,3)}' if unit == '亿元' else value
-                        table.append({'key': key, 'value': value,
-                                     'norn_value': norm_value, 'unit': unit})
+                        if key not in ['报告期', '股票代码']:
+                            table.append({'字段': key, '值': norm_value + unit})
             return table
 
-        if type == 'table':
-            info_dict = {
-                'stock_info': []
-            }
+        if _type == 'table':
+            info_ls = []
 
             output_split = output.split('*')
-            output_table_split = output_table.split('*')
+            # output_table_split = output_table.split('*')
             for stock in ent_dict['主体']['股票']:
                 stock_dict = {}
-                stock_dict['name'] = stock
-                stock_dict['data'] = {
-                    'basic': [],
-                    'question': []
-                }
-                # 基本面数据
-                basic_info = [x for x in output_table_split if stock in x][0]
-                data_split = basic_info.split('存在')
-                # 正则表达式模式，匹配时间
-                time_pattern = r'(\d{4}-\d{2}-\d{2})'
-                time_match = re.search(time_pattern, basic_info)
-                if time_match:
-                    report_time = time_match.group(1)
-                # 匹配类型
-                type_pattern = r'(.+?)如下表所示'
-                for data in data_split:
-                    # 使用正则表达式进行匹配
-                    record = {}
-                    type_match = re.search(type_pattern, data)
-                    if type_match and type_match.group(1) not in ['股票', '财务指标', '主营构成', '主要股东']:
-                        record['type_'] = type_match.group(1)
-                        record['report_time'] = report_time
-                        record['record'] = json_load(data)
-                        stock_dict['data']['basic'].append(record)
+                stock_dict['stock'] = stock
+                stock_dict['data'] = {}
+                # # 基本面数据
+                # basic_info = [x for x in output_table_split if stock in x][0]
+                # data_split = basic_info.split('存在')
+                # # 正则表达式模式，匹配时间
+                # time_pattern = r'(\d{4}-\d{2}-\d{2})'
+                # time_match = re.search(time_pattern, basic_info)
+                # if time_match:
+                #     report_time = time_match.group(1)
+                # # 匹配类型
+                # type_pattern = r'(.+?)如下表所示'
+                # for data in data_split:
+                #     # 使用正则表达式进行匹配
+                #     record = {}
+                #     type_match = re.search(type_pattern, data)
+                #     if type_match and type_match.group(1) not in ['股票', '财务指标', '主营构成', '主要股东']:
+                #         record['type_'] = type_match.group(1)
+                #         record['report_time'] = report_time
+                #         record['record'] = json_load(data)
+                #         stock_dict['data']['basic'].append(record)
 
                 # 问题数据
                 ques_info_list = [x for x in output_split if stock in x]
-                ques_data = []
                 for ques_info in ques_info_list:
                     data_split = ques_info.split('存在')
                     # 正则表达式模式，匹配时间
                     time_pattern = r'(\d{4}-\d{2}-\d{2})'
-                    time_match = re.search(time_pattern, ques_info)
+                    time_match = re.search(time_pattern, data_split[0])
                     if time_match:
                         report_time = time_match.group(1)
+                    else:
+                        report_time = ''
                     # 匹配类型
                     type_pattern = r'(.+?)如下表所示'
-                    for data in data_split:
-                        record = {}
-                        type_match = re.search(type_pattern, data)
-                        if type_match and type_match.group(1) not in ['股票', '财务指标', '主营构成', '主要股东']:
-                            record['type_'] = type_match.group(1)
-                            record['report_time'] = report_time
-                            record['record'] = json_load(data)
-                            ques_data.append(record)
-                indicator_data_dict = {}
-                for record in ques_data:
-                    type_ = record['type_']
-                    if type_ not in indicator_data_dict.keys():
-                        indicator_data_dict[type_] = [
-                            {
-                                'report_time': record['report_time'],
-                                'record': record['record'],
-                            }
-                        ]
-                    else:
-                        indicator_data_dict[type_].append({
-                            'report_time': record['report_time'],
-                            'record': record['record'],
-                        })
-                stock_dict['data']['question'] = [
-                    {"type_": type_, "report_list": data} for type_, data in indicator_data_dict.items()]
-                info_dict['stock_info'].append(stock_dict)
-            return info_dict
+                    type_match = re.search(type_pattern, data_split[1])
+                    if type_match and type_match.group(1) not in ['股票', '财务指标', '主营构成', '主要股东']:
+                        type_ = type_match.group(1)
+                        if type_ not in stock_dict['data'].keys():
+                            stock_dict['data'][type_] = []
+                        # if report_time not in stock_dict['data'][type_].keys():
+                        #     stock_dict['data'][type_][report_time] = []
+                        for record in json_load(data_split[1]):
+                            record['报告期'] = report_time
+                            record['类型'] = type_
+                            stock_dict['data'][type_].append(record)
+                info_ls.append(stock_dict)
+                # indicator_data_dict = {}
+                # for record in data_ls:
+                #     type_ = record['type_']
+                #     if type_ not in indicator_data_dict.keys():
+                #         indicator_data_dict[type_] = [
+                #             {
+                #                 'report_time': record['report_time'],
+                #                 'record': record['record'],
+                #             }
+                #         ]
+                #     else:
+                #         indicator_data_dict[type_].append({
+                #             'report_time': record['report_time'],
+                #             'record': record['record'],
+                #         })
+                # stock_dict['data'] = [
+                #     {"type_": type_, "report_list": data} for type_, data in indicator_data_dict.items()]
+                # data_ls.append(stock_dict)
+            return info_ls
 
         # 正则表达式模式，匹配|----|----|
         pattern = r'\|----\|----\|\n'
@@ -548,9 +551,9 @@ if __name__ == '__main__':
     logger.setLevel(logging.INFO)
     # logging.basicConfig(filename='answer2.log', level=logging.INFO, format='%(message)s')
 
-    ent_dict = {'主体': {'股票': ['贵州茅台']}, '时间': ['2023年'], '意图': ['收盘价']}
+    ent_dict = {'主体': {'股票': ['贵州茅台']}, '时间': ['2024年04月'], '意图': ['市净率']}
     start = time.time()
-    answer = AS.search_main(ent_dict)
+    answer = AS.search_main(ent_dict, _type='table')
     end = time.time()
     print(1, end-start, len(answer))
     print(answer)

@@ -64,7 +64,6 @@ def stream_chat(prompt):
         agents=[project_manager, kg_engineer, fin_analyst], messages=[], max_round=5,
         admin_name=project_manager.name, speaker_transitions_type='allowed',
         allowed_or_disallowed_speaker_transitions=allowed_speaker_transitions_dict)
-    del llm_config['functions']
     manager = autogen.GroupChatManager(
         groupchat=groupchat, llm_config=llm_config)
     print(f'initial autogen chat with query: {prompt}')

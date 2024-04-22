@@ -279,9 +279,9 @@ class KGRetrieverTool(LangChainTool):
                     output += f"- {start_labels} -> {relationship_type} -> {end_labels}\n"
         return output
 
-    def get_kg_query_result(self, ent_dict):
-        logging.info(f'start querying kg with ent_dict: {ent_dict}')
-        query_res = self.graph_searcher.search_main(ent_dict=ent_dict)
+    def get_kg_query_result(self, ent_dict, _type: str = 'llm'):
+        logging.info(f'start querying kg with ent_dict: {ent_dict} in type {_type}')
+        query_res = self.graph_searcher.search_main(ent_dict=ent_dict, _type=_type)
         return query_res
 
     def vector_search(self, text, collection_name, output_fields):
@@ -322,9 +322,12 @@ class KGRetrieverTool(LangChainTool):
             if len(matched_stock_list) == 0:
                 return None
             question_dict['主体']['股票'] += matched_stock_list
+        question_dict['主体']['股票'] = list(set(question_dict['主体']['股票']))
         for extract_time in ie_res["时间"]:
-            process_time = ast.literal_eval(tr.run(query=extract_time))
-            question_dict['时间'] += process_time
+            if extract_time:
+                process_time = ast.literal_eval(tr.run(query=extract_time))
+                question_dict['时间'] += process_time
+        question_dict['时间'] = list(set(question_dict['时间']))
         for extract_intent in ie_res["意图"]:
             matched_attr_list = self.get_kg_matched_subject(subject=extract_intent,
                                                             match_type='intent',
@@ -333,6 +336,7 @@ class KGRetrieverTool(LangChainTool):
                                                            match_type='intent',
                                                            subject_type='实体')
             question_dict['意图'] += matched_attr_list + matched_ent_list
+        question_dict['意图'] = list(set(question_dict['意图']))
         if self.verbose:
             logging.info(f'question extraction dict: {question_dict}')
         return question_dict
@@ -396,31 +400,41 @@ class KGRetrieverTool(LangChainTool):
         return dp[-1][-1]
 
     @staticmethod
-    def equal(subject_1: str, subject_2: str) -> bool:
-        if subject_2 in subject_1:
+    def include(subject_1: str, subject_2: str) -> bool:
+        if subject_2 in subject_1 or subject_1 in subject_2:
             return True
         return False
 
     def get_kg_matched_subject(self, subject, match_type, subject_type):
-        '''
+        """
 
         更新basic_ent[subject]
-        '''
+        """
         scores_best = float('inf')
-        equal_flag = False
+        include_flag = False
         most_similar_subject = ''
         matched_subject_list = []
         match_threshold = self.stock_matched_threshold if match_type == 'stock' else self.intent_matched_threshold
         for kg_subject in self.graph_searcher.knowledge[subject_type]:
-            if self.equal(subject, kg_subject):
-                matched_subject_list.append(kg_subject)
-                equal_flag = True
             scores_cur = self.editing_distance(kg_subject, subject)
-            if scores_cur < scores_best:
-                most_similar_subject = kg_subject
-                scores_best = scores_cur
-        if not equal_flag and self.bleu(subject, most_similar_subject) >= match_threshold:
+            if include_flag:
+                if self.include(subject, kg_subject):
+                    if scores_cur < scores_best:
+                        matched_subject_list = [kg_subject]
+                else:
+                    continue
+            else:
+                if self.include(subject, kg_subject):
+                    matched_subject_list = [kg_subject]
+                    scores_best = scores_cur
+                    include_flag = True
+                else:
+                    if scores_cur < scores_best:
+                        most_similar_subject = kg_subject
+                        scores_best = scores_cur
+        if not include_flag and self.bleu(subject, most_similar_subject) >= match_threshold:
             matched_subject_list.append(most_similar_subject)
+        matched_subject_list = list(set(matched_subject_list))
         return matched_subject_list
 
 
@@ -432,11 +446,12 @@ class CreateSchemeTool(LangChainTool):
         根据问题生成方案
         '''
         self._template = """
-        你是一名股票投资方面的专家，对于股票投资类问题，你需要分析出回答该问题可能需要涉及哪些基本面和行情数据，并以列表的形式回复，不同分析角度之间的相关性要低。
+        你是一名股票投资方面的专家，对于股票投资类问题，你需要分析出回答该问题可能需要涉及哪些基本面和行情数据，并以列表的形式回复，
+        不同分析角度之间的相关性要低，分析角度不要超过三个。
         
         举例：
         问题：贵州茅台是否值得投资？
-        分析角度：['盈利指标','估值','价格走势']
+        方案生成：['盈利指标','估值','价格走势']
 
         问题：分众传媒和新潮传媒哪个更好？
         方案生成：['盈利指标','风险指标','价值指标']
@@ -453,7 +468,8 @@ class GetAttributeTool(LangChainTool):
         根据问题和方案生成具体指标
         '''
         self._template = """
-        你是一名股票投资方面的专家，根据给出的股票投资类问题和问题分析角度,回答在当前分析角度下需要关注哪些意图指标,并以列表的形式回复。
+        你是一名股票投资方面的专家，根据给出的股票投资类问题和问题分析角度,回答在当前分析角度下需要关注哪些意图指标,
+        并以列表的形式回复。
 
         举例：
         问题：贵州茅台是否值得投资？
@@ -462,7 +478,7 @@ class GetAttributeTool(LangChainTool):
         
         问题：葛洲坝是否值得投资？
         分析因素：价格走势
-        关注指标: ['五日均线', '二十日均线', '布林带指标']
+        关注指标: ['MA5', 'MA20', 'RSI']
 
         问题：葛洲坝是否值得投资？
         分析因素：盈利能力
@@ -510,10 +526,11 @@ class KnowledgeAnalysisTool(LangChainTool):
         super().__init__(llm, verbose)
         self.name = "数据分析"
         self.description = '''
-        根据已知数据分析问题
+        你是一名专业的股票投资顾问, 请根据已知数据分析问题
         '''
         self._template = """
         请你根据以下给出的数据和问题，对已知的数据进行深度分析并回答问题。
+        分析字数在500字左右。
 
         已知数据：
         {data}
@@ -523,6 +540,7 @@ class KnowledgeAnalysisTool(LangChainTool):
         答案："""
         self.angle = ''
         self.question_intent = {}
+        self.display_table = None
 
 
 class PretrainInferenceTool(LangChainTool):
@@ -530,10 +548,11 @@ class PretrainInferenceTool(LangChainTool):
         super().__init__(llm, verbose)
         self.name = "预训练推理"
         self.description = '''
-        根据预训练模型进行推理
+        你是一名专业的股票投资顾问
         '''
         self._template = """
-        对于给定的问题，请你从{angle}的角度去分析问题,只考虑与{angle}有关的因素，不用考虑其他因素,分析字数在两百字左右
+        你是一名专业的股票投资顾问
+        对于给定的股票投资问题，请你从{angle}的角度去分析问题,只考虑与{angle}有关的因素，不用考虑其他因素, 分析字数在500字左右
 
         问题：{query}
         问题分析："""

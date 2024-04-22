@@ -1,4 +1,6 @@
 from typing import List
+
+import pandas as pd
 import streamlit as st
 
 from finllmqa.agent.autogen.oai.client import remove_timeout_buffer
@@ -40,6 +42,17 @@ def stream_chat_block(agent: LangChainTool | List[LangChainTool]):
         with st.chat_message(name='llm', avatar='assistant'):
             message_placeholder = st.empty()
             place_holder_pool.append(message_placeholder)
+        if agent_pool[i].name == '数据分析':
+            display_table_data = agent_pool[i].display_table
+            stock_ls = [table['stock'] for table in display_table_data]
+            prop_ls = display_table_data[0]['data'].keys()
+            selected_prop = st.selectbox("数据类别", prop_ls, index=0)
+            tab_ls = st.tabs(stock_ls)
+            for idx, tab in enumerate(tab_ls):
+                df = pd.DataFrame(display_table_data[idx]['data'][selected_prop])
+                with tab:
+                    expander = st.expander('查看具体数据')
+                    expander.table(df)
     display_agent_pool = agent_pool
     display_ans_generator_pool = [agent.get_stream_response() for agent in display_agent_pool]
     display_answer_ls = ['' for i in range(len(display_ans_generator_pool))]
@@ -56,7 +69,7 @@ def stream_chat_block(agent: LangChainTool | List[LangChainTool]):
                 except StopIteration:
                     finished_agent_index_ls.append(i)
                     continue
-    return description_ls, display_answer_ls
+    return description_ls, display_answer_ls, agent_pool
 
 
 def get_summarized_answer(query=None):
@@ -75,15 +88,17 @@ def get_summarized_answer(query=None):
         for chunk in chunks:
             answer += chunk.content
             place_holder.markdown(answer)
-        return description, answer
+        return description, answer, summarize_tool
     else:
         st.markdown('**没有进行对话**')
-        return None, None
+        return None, None, None
 
 
 def get_autogen_answer():
     prompt = st.session_state.autogen_prompt
     if prompt:
+        autogen_agent = LangChainTool()
+        autogen_agent.name = 'autogen'
         description = '**自动对话**'
         st.markdown(description)
         with st.chat_message(name='llm', avatar='assistant'):
@@ -93,10 +108,10 @@ def get_autogen_answer():
             if answer == '[DONE]':
                 break
             place_holder.markdown(answer)
-        return description, answer
+        return description, answer, autogen_agent
     else:
         st.markdown('**问题类别不属于股票投资，无法给出知识图谱优化建议**')
-        return None, None
+        return None, None, None
 
 
 with st.sidebar:
@@ -114,22 +129,34 @@ for conversation in st.session_state.conversations:
     for message in conversation:
         st.markdown(message['description'])
         st.chat_message(name='llm', avatar='assistant').write(message['answer'])
+        agent = message['agent']
+        if agent.name == '数据分析':
+            display_table_data = agent.display_table
+            stock_ls = [table['stock'] for table in display_table_data]
+            prop_ls = display_table_data[0]['data'].keys()
+            selected_prop = st.selectbox("数据类别", prop_ls, index=0)
+            tab_ls = st.tabs(stock_ls)
+            for idx, tab in enumerate(tab_ls):
+                df = pd.DataFrame(display_table_data[idx]['data'][selected_prop])
+                with tab:
+                    expander = st.expander('查看具体数据')
+                    expander.table(df)
 
 if st.session_state.is_answer_summarized:
     latest_conversation = st.session_state.conversations[-1]
-    summary_description, summary_answer = get_summarized_answer()
-    if summary_description is not None and summary_answer is not None:
+    summary_description, summary_answer, summary_agent = get_summarized_answer()
+    if summary_description is not None and summary_answer is not None and summary_agent is not None:
         one_conversation = [{'query': latest_conversation[0]['query'],
-                             'description': summary_description, 'answer': summary_answer}]
+                             'description': summary_description, 'answer': summary_answer, 'agent': summary_agent}]
         st.session_state.conversations.append(one_conversation)
         st.session_state.is_answer_summarized = False
         
 if st.session_state.is_autogen_start:
     latest_conversation = st.session_state.conversations[-1]
-    autogen_description, autogen_answer = get_autogen_answer()
+    autogen_description, autogen_answer, autogen_agent = get_autogen_answer()
     if autogen_description is not None and autogen_answer is not None:
         one_conversation = [{'query': latest_conversation[0]['query'],
-                             'description': autogen_description, 'answer': autogen_answer}]
+                             'description': autogen_description, 'answer': autogen_answer, 'agent': autogen_agent}]
         st.session_state.conversations.append(one_conversation)
         st.session_state.is_autogen_start = False
 
@@ -151,7 +178,7 @@ if user_input:
             ]
             base_llm_tool = LangChainTool()
             base_llm_tool.chat_messages = chat_messages
-            description_ls, answer_ls = stream_chat_block(agent=base_llm_tool)
+            description_ls, answer_ls, agent_pool = stream_chat_block(agent=base_llm_tool)
             st.session_state.is_answer_summarized = False
         else:
             summary_description, summary_answer = get_summarized_answer()
@@ -162,12 +189,12 @@ if user_input:
             ]
             base_llm_tool = LangChainTool()
             base_llm_tool.chat_messages = chat_messages
-            description_ls, answer_ls = stream_chat_block(agent=base_llm_tool)
+            description_ls, answer_ls, agent_pool = stream_chat_block(agent=base_llm_tool)
     else:
         if selected_qa_type == '其他':
             tool = LangChainTool()
             tool.get_reference(query=user_input)
-            description_ls, answer_ls = stream_chat_block(agent=tool)
+            description_ls, answer_ls, agent_pool = stream_chat_block(agent=tool)
         else:
             # tool = agent.choose_tools(query=user_input)
             with st.spinner('Initializing agent...'):
@@ -182,7 +209,7 @@ if user_input:
                     kg_matched_flag = tool.run(query=user_input)
                 if kg_matched_flag:
                     agent_pool = tool.knowledge_analysis_pool + tool.pretrain_inference_pool
-                    description_ls, answer_ls = stream_chat_block(agent=agent_pool)
+                    description_ls, answer_ls, agent_pool = stream_chat_block(agent=agent_pool)
                     question_intent_ls = [str(ka.question_intent) for ka in tool.knowledge_analysis_pool]
                     question_intent = "\n".join(question_intent_ls)
                     autogen_prompt = f"""
@@ -197,15 +224,15 @@ if user_input:
                     """
                     st.session_state.autogen_prompt = autogen_prompt
                 else:
-                    description_ls, answer_ls = stream_chat_block(agent=tool)
+                    description_ls, answer_ls, agent_pool = stream_chat_block(agent=tool)
             elif tool.name == '财经百科':
-                description_ls, answer_ls = stream_chat_block(agent=tool)
+                description_ls, answer_ls, agent_pool = stream_chat_block(agent=tool)
             else:
                 tool.get_reference(query=user_input)
-                description_ls, answer_ls = stream_chat_block(agent=tool)
+                description_ls, answer_ls, agent_pool = stream_chat_block(agent=tool)
     one_conversation = []
-    for description, answer in zip(description_ls, answer_ls):
-        one_conversation.append({'query': user_input, 'description': description, 'answer': answer})
+    for description, answer, agent in zip(description_ls, answer_ls, agent_pool):
+        one_conversation.append({'query': user_input, 'description': description, 'answer': answer, 'agent': agent})
     st.session_state.conversations.append(one_conversation)
 
 button_column_ls = st.columns(5)

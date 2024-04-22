@@ -30,7 +30,9 @@ class FinInvestmentQA(LangChainTool):
         if question_dict:
             if len(question_dict['意图']) > 0:
                 query_res = self.kg_retriever.get_kg_query_result(ent_dict=question_dict)
+                query_table_res = self.kg_retriever.get_kg_query_result(ent_dict=question_dict, _type='table')
                 ka_tool = KnowledgeAnalysisTool()
+                ka_tool.display_table = query_table_res
                 ka_tool.reference = {
                     'data': query_res,
                     'query': query
@@ -39,48 +41,58 @@ class FinInvestmentQA(LangChainTool):
                 ka_tool.question_intent = question_dict
                 ka_tool.angle = '原问题'
                 self.knowledge_analysis_pool.append(ka_tool)
+                return True
+            else:
+                angel_intent_dict = GetAttributeTool(self.llm).run(query)
+                if not angel_intent_dict:
+                    self.reference = None
+                    return False
+                for angle, intent_ls in angel_intent_dict.items():
+                    new_question_dict = deepcopy(question_dict)
+                    for intent in intent_ls:
+                        matched_attr_list = self.kg_retriever.get_kg_matched_subject(subject=intent,
+                                                                                     match_type='intent',
+                                                                                     subject_type='属性')
+                        matched_ent_list = self.kg_retriever.get_kg_matched_subject(subject=intent,
+                                                                                    match_type='intent',
+                                                                                    subject_type='实体')
+                        matched_intent_list = matched_attr_list + matched_ent_list
+                        if len(matched_intent_list) == 0:
+                            self.fail_matched_intent_dc[angle] = intent
+                        new_question_dict['意图'] += matched_intent_list
+                    new_question_dict['意图'] = list(set(new_question_dict['意图']))[:4]
+                    if len(new_question_dict['意图']) > 0:
+                        query_res = self.kg_retriever.get_kg_query_result(new_question_dict)
+                        query_table_res = self.kg_retriever.get_kg_query_result(ent_dict=new_question_dict,
+                                                                                _type='table')
+                        if query_res:
+                            ka_tool = KnowledgeAnalysisTool()
+                            ka_tool.display_table = query_table_res
+                            ka_tool.reference = {
+                                'data': query_res,
+                                'query': query
+                            }
+                            ka_tool.get_str_prompt()
+                            ka_tool.angle = angle
+                            ka_tool.question_intent = new_question_dict
+                            ka_tool.chat_messages = [('ai', ka_tool.description),
+                                                     ('human', ka_tool.prompt_str)]
+                            self.knowledge_analysis_pool.append(ka_tool)
+                            continue
+                    pi_tool = PretrainInferenceTool()
+                    pi_tool.reference = {
+                        'angle': angle,
+                        'query': query
+                    }
+                    pi_tool.get_str_prompt()
+                    pi_tool.angle = angle
+                    pi_tool.chat_messages = [('ai', pi_tool.description),
+                                             ('human', pi_tool.prompt_str)]
+                    self.pretrain_inference_pool.append(pi_tool)
+                return True
         else:
             self.reference = None
             return False
-        angel_intent_dict = GetAttributeTool(self.llm).run(query)
-        if not angel_intent_dict:
-            self.reference = None
-            return False
-        for angle, intent_ls in angel_intent_dict.items():
-            new_question_dict = deepcopy(question_dict)
-            for intent in intent_ls:
-                matched_attr_list = self.kg_retriever.get_kg_matched_subject(subject=intent,
-                                                                             match_type='intent',
-                                                                             subject_type='属性')
-                matched_ent_list = self.kg_retriever.get_kg_matched_subject(subject=intent,
-                                                                            match_type='intent',
-                                                                            subject_type='实体')
-                matched_intent_list = matched_attr_list + matched_ent_list
-                if len(matched_intent_list) == 0:
-                    self.fail_matched_intent_dc[angle] = intent
-                new_question_dict['意图'] += matched_intent_list
-            if len(new_question_dict['意图']) > 0:
-                query_res = self.kg_retriever.get_kg_query_result(new_question_dict)
-                if query_res:
-                    ka_tool = KnowledgeAnalysisTool()
-                    ka_tool.reference = {
-                        'data': query_res,
-                        'query': query
-                    }
-                    ka_tool.get_str_prompt()
-                    ka_tool.angle = angle
-                    ka_tool.question_intent = new_question_dict
-                    self.knowledge_analysis_pool.append(ka_tool)
-                    continue
-            pi_tool = PretrainInferenceTool()
-            pi_tool.reference = {
-                'angle': angle,
-                'query': query
-            }
-            pi_tool.get_str_prompt()
-            pi_tool.angle = angle
-            self.pretrain_inference_pool.append(pi_tool)
-        return True
 
     def run(self, query):
         kg_matched_flag = self.get_reference(query=query)

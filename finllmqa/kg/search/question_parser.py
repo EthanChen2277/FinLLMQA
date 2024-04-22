@@ -108,7 +108,7 @@ class QuestionParser:
                             2, sj_time)
                     else:
                         basic_ent[f'{index_type}_{subject}'] = [
-                            '2023', '2024']  # heapq.nlargest(3, sj_time)
+                            '2024']  # heapq.nlargest(3, sj_time)
             else:
                 for subject, sj_time in time_pool.items():
                     self.knowledge[f'{index_type}_{subject}'] = sj_time

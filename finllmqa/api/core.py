@@ -1,5 +1,5 @@
 # change local and server url if needed 
-LOCAL_HOST = '192.168.44.1'
+LOCAL_HOST = '192.168.30.174'
 LOCAL_API_URL = 'http://' + LOCAL_HOST
 SERVER_API_URL = 'http://gemini2.sufe.edu.cn:27282'
 
