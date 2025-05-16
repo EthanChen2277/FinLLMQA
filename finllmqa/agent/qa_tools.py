@@ -2,6 +2,7 @@ import logging
 from copy import deepcopy
 from langchain_core.language_models import BaseLanguageModel
 
+from finllmqa.api.core import LLM
 from finllmqa.agent.llama_index_tools import RAGQueryEngineTool
 from finllmqa.agent.langchain_tools import KGRetrieverTool, KnowledgeAnalysisTool, GetAttributeTool, \
     PretrainInferenceTool, LangChainTool
@@ -22,7 +23,7 @@ class FinInvestmentQA(LangChainTool):
         # 分别存储以知识图谱和语言模型作为知识支撑的答案生成调用
         self.knowledge_analysis_pool = []
         self.pretrain_inference_pool = []
-        self.kg_retriever = KGRetrieverTool()
+        self.kg_retriever = KGRetrieverTool(llm=self.llm)
         self.fail_matched_intent_dc = {}
 
     def get_reference(self, query):
@@ -31,7 +32,7 @@ class FinInvestmentQA(LangChainTool):
             if len(question_dict['意图']) > 0:
                 query_res = self.kg_retriever.get_kg_query_result(ent_dict=question_dict)
                 query_table_res = self.kg_retriever.get_kg_query_result(ent_dict=question_dict, _type='table')
-                ka_tool = KnowledgeAnalysisTool()
+                ka_tool = KnowledgeAnalysisTool(llm=self.llm)
                 ka_tool.display_table = query_table_res
                 ka_tool.reference = {
                     'data': query_res,
@@ -43,7 +44,7 @@ class FinInvestmentQA(LangChainTool):
                 self.knowledge_analysis_pool.append(ka_tool)
                 return True
             else:
-                angel_intent_dict = GetAttributeTool(self.llm).run(query)
+                angel_intent_dict = GetAttributeTool(llm=self.llm).run(query)
                 if not angel_intent_dict:
                     self.reference = None
                     return False
@@ -66,7 +67,7 @@ class FinInvestmentQA(LangChainTool):
                         query_table_res = self.kg_retriever.get_kg_query_result(ent_dict=new_question_dict,
                                                                                 _type='table')
                         if query_res:
-                            ka_tool = KnowledgeAnalysisTool()
+                            ka_tool = KnowledgeAnalysisTool(llm=self.llm)
                             ka_tool.display_table = query_table_res
                             ka_tool.reference = {
                                 'data': query_res,
@@ -79,7 +80,7 @@ class FinInvestmentQA(LangChainTool):
                                                      ('human', ka_tool.prompt_str)]
                             self.knowledge_analysis_pool.append(ka_tool)
                             continue
-                    pi_tool = PretrainInferenceTool()
+                    pi_tool = PretrainInferenceTool(llm=self.llm)
                     pi_tool.reference = {
                         'angle': angle,
                         'query': query
@@ -116,7 +117,7 @@ class FinKnowledgeQA(LangChainTool):
 
         问题：{query}"""
         self.angle = '原问题'
-        self.query_engine = RAGQueryEngineTool()
+        self.query_engine = RAGQueryEngineTool(llm=self.llm)
 
     def query(self, query, retrieve_mode, response_mode):
         self.query_engine.get_retriever(mode=retrieve_mode)
@@ -174,15 +175,33 @@ class IntentAgent(LangChainTool):
         while True:
             if i == 3:
                 logging.info(f'无法识别问题类别')
-                return LangChainTool()
+                return LangChainTool(llm=self.llm, verbose=self.verbose)
+            self.get_reference(query=query)
             resp = self.run(query=query)
             self.progress(progress_text=f'分类结果为：{resp}')
             logging.info(f'意图识别结果为：{resp}')
             matched_tool_ls = []
-            for tool in [FinKnowledgeQA(), FinInvestmentQA(), LangChainTool()]:
+            for tool in [FinInvestmentQA(llm=self.llm), LangChainTool(llm=self.llm),
+                        #  FinKnowledgeQA(llm=self.llm)
+                         ]:
                 if tool.name in resp:
                     matched_tool_ls.append(tool)
             if len(matched_tool_ls) == 1:
                 return matched_tool_ls[0]
             i += 1
             continue
+        
+if __name__ == "__main__":
+    llm = LLM
+    agent = IntentAgent(llm=llm)
+    # query = "李白写过哪些诗"
+    # tool = agent.choose_qa_tools(query)
+    # tool.run(query=query)
+    
+    # query = "后天是周末吗"
+    # tool = agent.choose_qa_tools(query)
+    # tool.run(query=query)
+
+    query = "平安银行最近的财务表现如何"
+    tool = agent.choose_qa_tools(query)
+    tool.run(query=query)

@@ -11,7 +11,7 @@ from finllmqa.api.core import LLM_API_URL
 def stream_chat(prompt):
     config_list_gpt = [
         {
-            "model": "chatglm3-6b",
+            "model": "qwen2.5:32b",
             "base_url": LLM_API_URL,
             "api_type": "openai",
             "api_key": "NULL",

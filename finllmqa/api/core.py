@@ -1,7 +1,10 @@
 from dotenv import load_dotenv
 import os
 
-load_dotenv()
+from langchain_openai import ChatOpenAI
+
+
+load_dotenv(override=True)
 LOCAL_HOST = os.environ.get('LOCAL_HOST', '')
 if LOCAL_HOST == '':
     raise ValueError("LOCAL_HOST environment variable is not set. Please set it to your local host address.")
@@ -27,3 +30,11 @@ CHAT_API_URL = LLM_API_URL + '/chat/completions'
 # login info
 STOCK_KG_USER = os.environ.get('STOCK_KG_USER', 'neo4j')
 STOCK_KG_PW = os.environ.get('STOCK_KG_PW', 'neo4j')
+
+# Initialize LangChain LLM Application
+LLM = ChatOpenAI(
+    model="qwen2.5:32b",
+    temperature=0.7, 
+    base_url=LLM_API_URL,
+    api_key='ollama'
+)

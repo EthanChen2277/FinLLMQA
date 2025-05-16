@@ -3,6 +3,7 @@ from typing import List
 import pandas as pd
 import streamlit as st
 
+from finllmqa.api.core import LLM
 from finllmqa.agent.autogen.oai.client import remove_timeout_buffer
 from finllmqa.agent.autogen_tools import get_autogen_stream_answer
 from finllmqa.agent.langchain_tools import LangChainTool, SummarizeTool, KGRetrieverTool
@@ -78,7 +79,7 @@ def get_summarized_answer(query=None):
     if len(latest_conversation) > 0:
         answer_ls = [message['answer'] for message in latest_conversation]
         total_answer = '\n'.join(answer_ls)
-        summarize_tool = SummarizeTool()
+        summarize_tool = SummarizeTool(llm=LLM)
         chunks = summarize_tool.get_stream_response(query=query, total_answer=total_answer)
         description = '**总结上一轮对话**'
         st.markdown(description)
@@ -97,7 +98,7 @@ def get_summarized_answer(query=None):
 def get_autogen_answer():
     prompt = st.session_state.autogen_prompt
     if prompt:
-        autogen_agent = LangChainTool()
+        autogen_agent = LangChainTool(llm=LLM)
         autogen_agent.name = 'autogen'
         description = '**自动对话**'
         st.markdown(description)
@@ -168,68 +169,69 @@ if user_input:
     input_placeholder.markdown(user_input)
     # 删除过期的buffer
     remove_timeout_buffer()
-    if len(st.session_state.conversations) > 0:
-        latest_conversation = st.session_state.conversations[-1]
-        if st.session_state.is_answer_summarized:
-            chat_messages = [
-                ('human', latest_conversation[0]['query']),
-                ('ai', latest_conversation[0]['answer']),
-                ('human', user_input)
-            ]
-            base_llm_tool = LangChainTool()
-            base_llm_tool.chat_messages = chat_messages
-            description_ls, answer_ls, agent_pool = stream_chat_block(agent=base_llm_tool)
-            st.session_state.is_answer_summarized = False
+    # if len(st.session_state.conversations) > 0:
+    #     # 如果是股票投资问题，且已经有对话记录，则需要将上次的回答进行总结
+    #     latest_conversation = st.session_state.conversations[-1]
+    #     if st.session_state.is_answer_summarized:
+    #         chat_messages = [
+    #             ('human', latest_conversation[0]['query']),
+    #             ('ai', latest_conversation[0]['answer']),
+    #             ('human', user_input)
+    #         ]
+    #         base_llm_tool = LangChainTool(llm=LLM)
+    #         base_llm_tool.chat_messages = chat_messages
+    #         description_ls, answer_ls, agent_pool = stream_chat_block(agent=base_llm_tool)
+    #         st.session_state.is_answer_summarized = False
+    #     else:
+    #         summary_description, summary_answer = get_summarized_answer()
+    #         chat_messages = [
+    #             ('human', latest_conversation[0]['query']),
+    #             ('ai', summary_answer),
+    #             ('human', user_input)
+    #         ]
+    #         base_llm_tool = LangChainTool(llm=LLM)
+    #         base_llm_tool.chat_messages = chat_messages
+    #         description_ls, answer_ls, agent_pool = stream_chat_block(agent=base_llm_tool)
+    # else:
+        # if selected_qa_type == '其他':
+        #     tool = LangChainTool(llm=LLM)
+        #     tool.get_reference(query=user_input)
+        #     description_ls, answer_ls, agent_pool = stream_chat_block(agent=tool)
+        # else:
+    with st.spinner('Initializing agent...'):
+        agent = IntentAgent(llm=LLM)
+    with st.spinner('Classifying question...'):
+        tool = agent.choose_qa_tools(query=user_input)
+    if tool.name != selected_qa_type:
+        st.chat_message(name='assistant', avatar='assistant').write(
+            f'您的问题与已选择的问题类型({selected_qa_type})不匹配, 正在为您转换至{tool.name}类大模型工具进行回答')
+        selected_qa_type = tool.name
+    if tool.name == '股票投资':
+        with st.spinner('Analyzing question...'):
+            kg_matched_flag = tool.run(query=user_input)
+        if kg_matched_flag:
+            agent_pool = tool.knowledge_analysis_pool + tool.pretrain_inference_pool
+            description_ls, answer_ls, agent_pool = stream_chat_block(agent=agent_pool)
+            question_intent_ls = [str(ka.question_intent) for ka in tool.knowledge_analysis_pool]
+            question_intent = "\n".join(question_intent_ls)
+            autogen_prompt = f"""
+                现在存在一个股票的基本面和行情知识图谱，图谱结构如下
+                -------------------------
+                {KGRetrieverTool().get_kg_schema()}
+                -------------------------
+                基于用户提出的问题:{user_input}, 从问题中提取出与该知识图谱匹配的意图有:
+                {question_intent}
+                请分析图谱结构设计是否合理，同时对于用户的问题分析还可以补充哪些数据到知识图谱中，给出优化后知识图谱的结构。
+                请项目主管先给出具体方案。
+            """
+            st.session_state.autogen_prompt = autogen_prompt
         else:
-            summary_description, summary_answer = get_summarized_answer()
-            chat_messages = [
-                ('human', latest_conversation[0]['query']),
-                ('ai', summary_answer),
-                ('human', user_input)
-            ]
-            base_llm_tool = LangChainTool()
-            base_llm_tool.chat_messages = chat_messages
-            description_ls, answer_ls, agent_pool = stream_chat_block(agent=base_llm_tool)
-    else:
-        if selected_qa_type == '其他':
-            tool = LangChainTool()
-            tool.get_reference(query=user_input)
             description_ls, answer_ls, agent_pool = stream_chat_block(agent=tool)
-        else:
-            # tool = agent.choose_tools(query=user_input)
-            with st.spinner('Initializing agent...'):
-                agent = IntentAgent()
-            with st.spinner('Classifying question...'):
-                tool = agent.choose_qa_tools(query=user_input)
-            if tool.name != selected_qa_type:
-                st.chat_message(name='assistant', avatar='assistant').write(
-                    f'您的问题与已选择的问题类型({selected_qa_type})不匹配, 正在为您转换至{tool.name}类大模型工具进行回答')
-            if tool.name == '股票投资':
-                with st.spinner('Analyzing question...'):
-                    kg_matched_flag = tool.run(query=user_input)
-                if kg_matched_flag:
-                    agent_pool = tool.knowledge_analysis_pool + tool.pretrain_inference_pool
-                    description_ls, answer_ls, agent_pool = stream_chat_block(agent=agent_pool)
-                    question_intent_ls = [str(ka.question_intent) for ka in tool.knowledge_analysis_pool]
-                    question_intent = "\n".join(question_intent_ls)
-                    autogen_prompt = f"""
-                        现在存在一个股票的基本面和行情知识图谱，图谱结构如下
-                        -------------------------
-                        {KGRetrieverTool().get_kg_schema()}
-                        -------------------------
-                        基于用户提出的问题:{user_input}, 从问题中提取出与该知识图谱匹配的意图有:
-                        {question_intent}
-                        请分析图谱结构设计是否合理，同时对于用户的问题分析还可以补充哪些数据到知识图谱中，给出优化后知识图谱的结构。
-                        请项目主管先给出具体方案。
-                    """
-                    st.session_state.autogen_prompt = autogen_prompt
-                else:
-                    description_ls, answer_ls, agent_pool = stream_chat_block(agent=tool)
-            elif tool.name == '财经百科':
-                description_ls, answer_ls, agent_pool = stream_chat_block(agent=tool)
-            else:
-                tool.get_reference(query=user_input)
-                description_ls, answer_ls, agent_pool = stream_chat_block(agent=tool)
+    elif tool.name == '财经百科':
+        description_ls, answer_ls, agent_pool = stream_chat_block(agent=tool)
+    else:
+        tool.get_reference(query=user_input)
+        description_ls, answer_ls, agent_pool = stream_chat_block(agent=tool)
     one_conversation = []
     for description, answer, agent in zip(description_ls, answer_ls, agent_pool):
         one_conversation.append({'query': user_input, 'description': description, 'answer': answer, 'agent': agent})

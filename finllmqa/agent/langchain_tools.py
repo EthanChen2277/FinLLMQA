@@ -29,7 +29,7 @@ class LangChainTool(ABC):
         else:
             self.llm = llm
         self.llm_chain = None
-        self.name = "其它"
+        self.name = "其他"
         self.description = '''
         无需任何信息，直接回答
         '''
@@ -44,6 +44,10 @@ class LangChainTool(ABC):
         self.verbose = verbose
         self.progress_func = kwargs.get('progress_func')
         # self.progress(progress_text='开始分析问题')
+        
+    @staticmethod
+    def find_brackets(text):
+        return re.findall(r'\[.*?\]', text)
 
     def get_prompt_template(self):
         self.prompt_template = PromptTemplate.from_template(self._template)
@@ -61,6 +65,7 @@ class LangChainTool(ABC):
     def get_chat_llm_chain(self):
         chat_prompt = ChatPromptTemplate.from_messages(self.chat_messages or [('human', self.prompt_str)])
         self.llm_chain = chat_prompt | self.llm
+        
 
     def progress(self, progress_text):
         """
@@ -325,7 +330,12 @@ class KGRetrieverTool(LangChainTool):
         question_dict['主体']['股票'] = list(set(question_dict['主体']['股票']))
         for extract_time in ie_res["时间"]:
             if extract_time:
-                process_time = ast.literal_eval(tr.run(query=extract_time))
+                process_time = tr.run(query=extract_time)
+                try:
+                    process_time = ast.literal_eval(process_time)
+                except:
+                    process_time = self.find_brackets(process_time)[0]
+                    process_time = ast.literal_eval(process_time)
                 question_dict['时间'] += process_time
         question_dict['时间'] = list(set(question_dict['时间']))
         for extract_intent in ie_res["意图"]:
@@ -496,8 +506,12 @@ class GetAttributeTool(LangChainTool):
         try:
             angle_list = ast.literal_eval(scheme)
         except:
-            logging.info(f"生成的方案不是列表形式，无法被解析:{scheme}")
-            return ''
+            try:
+                angle_list = self.find_brackets(scheme)[0]
+                angle_list = ast.literal_eval(angle_list)
+            except:
+                logging.info(f"生成的方案不是列表形式，无法被解析:{scheme}")
+                return ''
         response = {}
         for angle in angle_list:
             self.progress(progress_text=f'正在分析 {angle}')
@@ -515,9 +529,14 @@ class GetAttributeTool(LangChainTool):
                 indicator_list = ast.literal_eval(resp)
                 response[angle] = indicator_list
             except Exception as e:
-                logging.info(e)
-                logging.info(f"生成的指标不是列表形式，无法被解析:{resp}")
-                continue
+                try:
+                    indicator_list = self.find_brackets(resp)[0]
+                    indicator_list = ast.literal_eval(indicator_list)
+                    response[angle] = indicator_list
+                except Exception as e:
+                    logging.info(e)
+                    logging.info(f"生成的指标不是列表形式，无法被解析:{resp}")
+                    continue
         return response or ''
 
 
@@ -582,27 +601,3 @@ def handle_answer(text: str):
     text = re.sub(r"OpenAI", "", text)
     text = re.sub(r"GPT-3\.5", "", text)
     return text
-
-
-# if __name__ == "__main__":
-    # llm = ChatGLM3(
-    #     endpoint_url=CHAT_API_URL,
-    #     max_tokens=8096,
-    #     top_p=0.9
-    # )
-    # tools = [KGRetrieveTool(llm), LangChainTool(llm)]
-    # agent = IntentAgent(llm=llm, tools=tools)
-    # query = "李白写过哪些诗"
-    # tool = agent.choose_tools(query)
-    # print(tool.name)
-    # print(tool.run(query))
-    #
-    # query = "后天是周末吗"
-    # tool = agent.choose_tools(query)
-    # print(tool.name)
-    # print(tool.run(query))
-
-    # query = "分众传媒的实际控制人是谁"
-    # tool = agent.choose_tools(query)
-    # print(tool.name)
-    # print(tool.run(query))
