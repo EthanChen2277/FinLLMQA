@@ -5,7 +5,7 @@ from IPython import get_ipython
 try:
     import chromadb
 except ImportError:
-    raise ImportError("Please install dependencies first. `pip install pyautogen[retrievechat]`")
+    raise ImportError("Please install dependencies first. `pip install ag2[retrievechat]`")
 from finllmqa.agent.autogen.agentchat.agent import Agent
 from finllmqa.agent.autogen.agentchat import UserProxyAgent
 from finllmqa.agent.autogen.retrieve_utils import create_vector_db_from_dir, query_vector_db, TEXT_FORMATS
